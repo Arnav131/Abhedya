@@ -5,7 +5,6 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 from ai_engine.honeypot_llm import generate_decoy_passwords_llm, honey_response
 
-# Simple test for generate_decoy_passwords_llm
 def test_generate_decoy_passwords_llm():
     real_password = "Abc123!@#"
     decoys = generate_decoy_passwords_llm(real_password, n=4)
@@ -15,7 +14,6 @@ def test_generate_decoy_passwords_llm():
         assert len(pwd) == len(real_password)
         assert pwd != real_password
 
-# Simple test for honey_response
 def test_honey_response():
     decoys = ["Xyz789$%^", "Qwe456&*()", "Rty321!@#", "Uio654#@!"]
     response = honey_response(decoys)

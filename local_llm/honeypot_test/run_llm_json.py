@@ -6,7 +6,7 @@ import json
 from ai_engine.honeypot_llm import generate_decoy_passwords_llm
 
 def main():
-    # Read JSON input from stdin
+    
     input_data = sys.stdin.read()
     try:
         data = json.loads(input_data)

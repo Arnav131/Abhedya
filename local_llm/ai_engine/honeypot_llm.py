@@ -6,8 +6,8 @@ from transformers import pipeline
 
 generator = pipeline(
     "text-generation",
-    model="distilgpt2",   # lightweight, runs locally
-    device=-1             # CPU (safe for hackathon)
+    model="distilgpt2",   
+    device=-1
 )
 
 def build_prompt(real_password: str) -> str:
@@ -31,7 +31,7 @@ def clean_passwords(text: str, target_length: int):
     passwords = []
     for line in lines:
         line = line.strip()
-        # Removes unwanted characters
+        
         line = re.sub(r"[^a-zA-Z0-9!@#$%^&*]", "", line)
         if len(line) == target_length:
             passwords.append(line)
@@ -49,12 +49,13 @@ def generate_decoy_passwords_llm(real_password: str, n=4):
     )
     raw_output = result[0]["generated_text"]
     candidates = clean_passwords(raw_output, len(real_password))
-    # Fallback if LLM fails
+
+
     if len(candidates) < n:
         candidates.extend(fallback_generate(real_password, n - len(candidates)))
     return candidates[:n]
 
-# fallback
+
 import string
 
 def fallback_generate(real_password, n):
