@@ -3,6 +3,7 @@ Honeypot Views — Status & Regeneration Endpoints
 
 Endpoints:
   GET  /api/honeypot/status/      — Summary of honeypot entries for the user
+    GET  /api/honeypot/llm-status/  — Local LLM connectivity status
   POST /api/honeypot/regenerate/  — Re-generate honeypots for the user
 
 Security:
@@ -14,6 +15,7 @@ import hashlib
 import logging
 import uuid
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
 from rest_framework import status
@@ -24,6 +26,43 @@ from rest_framework.views import APIView
 from .honeypot_models import HoneypotEntry
 
 logger = logging.getLogger("abhedya.honeypot.views")
+
+
+class HoneypotLLMStatusView(APIView):
+    """GET /api/honeypot/llm-status/
+
+    Returns current local LLM connectivity and effective mode selection.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            from ai_engine.honeypot_llm import get_local_llm_status
+
+            config = getattr(settings, "HONEYPOT", {})
+            status_payload = get_local_llm_status(
+                backend=config.get("LLM_BACKEND", "ollama"),
+                ollama_model=config.get("OLLAMA_MODEL"),
+                ollama_url=config.get("OLLAMA_BASE_URL"),
+                ollama_timeout=config.get("OLLAMA_TIMEOUT"),
+                transformers_model=config.get("TRANSFORMERS_MODEL"),
+            )
+
+            return Response(
+                {
+                    "enabled": bool(config.get("ENABLED", True)),
+                    "registration_uses_llm": bool(config.get("USE_LLM_ON_REGISTRATION", True)),
+                    "status": status_payload,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as exc:
+            logger.error("Failed to resolve local LLM status: %s", exc, exc_info=True)
+            return Response(
+                {"error": "Failed to resolve local LLM status."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class HoneypotStatusView(APIView):
@@ -111,13 +150,30 @@ class HoneypotRegenerateView(APIView):
         user_hash = hashlib.sha256(str(user.id).encode()).hexdigest()[:12]
 
         try:
-            from ai_engine.honeypot_llm import generate_honeypots
+            from ai_engine.honeypot_llm import generate_honeypots, get_local_llm_status
+
+            config = getattr(settings, "HONEYPOT", {})
+            backend = str(config.get("LLM_BACKEND", "ollama")).lower()
+            llm_status = get_local_llm_status(
+                backend=backend,
+                ollama_model=config.get("OLLAMA_MODEL"),
+                ollama_url=config.get("OLLAMA_BASE_URL"),
+                ollama_timeout=config.get("OLLAMA_TIMEOUT"),
+                transformers_model=config.get("TRANSFORMERS_MODEL"),
+            )
+            use_llm = backend != "fallback" and llm_status.get("llm_available", False)
 
             # Delete old entries
             old_count, _ = HoneypotEntry.objects.filter(user=user).delete()
 
             # Generate new bundle
-            bundle = generate_honeypots(user_id=str(user.id))
+            bundle = generate_honeypots(
+                user_id=str(user.id),
+                use_llm=use_llm,
+                ollama_model=config.get("OLLAMA_MODEL"),
+                ollama_url=config.get("OLLAMA_BASE_URL"),
+                ollama_timeout=config.get("OLLAMA_TIMEOUT"),
+            )
             metadata = bundle.get("metadata", {})
             honeypot_batch_id = uuid.UUID(
                 metadata.get("honeypot_id", str(uuid.uuid4()))
@@ -213,6 +269,8 @@ class HoneypotRegenerateView(APIView):
                     "old_entries_deleted": old_count,
                     "new_entries_created": len(entries),
                     "generator": generator_choice,
+                    "llm_mode": llm_status.get("effective_mode"),
+                    "llm_available": llm_status.get("llm_available"),
                     "honeypot_batch_id": str(honeypot_batch_id),
                 },
                 status=status.HTTP_201_CREATED,

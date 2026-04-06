@@ -8,6 +8,7 @@ Routes:
   /api/vault/               — Vault CRUD (see vault/urls.py)
   /api/audit/               — Ephemeral secret audit (Phase 2)
   /api/honeypot/status/     — Honeypot status for authenticated user
+  /api/honeypot/llm-status/ — Local LLM connectivity status
   /api/honeypot/regenerate/ — Re-generate honeypots
   /admin/                   — Django admin
 """
@@ -20,7 +21,11 @@ from rest_framework_simplejwt.views import (
 )
 
 from vault.views import RegisterView
-from vault.honeypot_views import HoneypotStatusView, HoneypotRegenerateView
+from vault.honeypot_views import (
+  HoneypotStatusView,
+  HoneypotLLMStatusView,
+  HoneypotRegenerateView,
+)
 
 urlpatterns = [
     # ── Admin ──
@@ -39,6 +44,7 @@ urlpatterns = [
 
     # ── Honeypot (Phase 3) ──
     path("api/honeypot/status/", HoneypotStatusView.as_view(), name="honeypot-status"),
+    path("api/honeypot/llm-status/", HoneypotLLMStatusView.as_view(), name="honeypot-llm-status"),
     path("api/honeypot/regenerate/", HoneypotRegenerateView.as_view(), name="honeypot-regenerate"),
 ]
 

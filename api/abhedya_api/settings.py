@@ -183,10 +183,10 @@ if not DEBUG:
 HONEYPOT = {
     # Master switch — set False to disable honeypot generation entirely
     "ENABLED": config("HONEYPOT_ENABLED", default=True, cast=bool),
-    # Reliability mode for registration: False keeps generation fast/deterministic.
-    "USE_LLM_ON_REGISTRATION": config("HONEYPOT_USE_LLM_ON_REGISTRATION", default=False, cast=bool),
-    # Backend: "auto" (try Ollama→Transformers→Fallback), "ollama", "transformers", "fallback"
-    "LLM_BACKEND": config("HONEYPOT_LLM_BACKEND", default="auto"),
+    # Enable local LLM generation for registration when available.
+    "USE_LLM_ON_REGISTRATION": config("HONEYPOT_USE_LLM_ON_REGISTRATION", default=True, cast=bool),
+    # Backend: "ollama" (recommended), "auto", "transformers", "fallback"
+    "LLM_BACKEND": config("HONEYPOT_LLM_BACKEND", default="ollama"),
     # Ollama settings (used when backend is "auto" or "ollama")
     "OLLAMA_BASE_URL": config("OLLAMA_BASE_URL", default="http://localhost:11434"),
     "OLLAMA_MODEL": config("OLLAMA_MODEL", default="llama3"),
