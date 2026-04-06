@@ -65,3 +65,7 @@ class VaultEntry(models.Model):
 
     def __str__(self):
         return f"[{self.label}] — {self.user.username}"
+
+
+# Import HoneypotEntry so Django discovers it for migrations
+from .honeypot_models import HoneypotEntry  # noqa: E402, F401

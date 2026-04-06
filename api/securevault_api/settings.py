@@ -174,3 +174,24 @@ if not DEBUG:
     X_FRAME_OPTIONS = "DENY"
     SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# ──────────────────────────────────────────────
+# Honeypot Deception Engine (Phase 3)
+# ──────────────────────────────────────────────
+# Auto-generates fake decoy secrets via local LLM at registration time.
+# Priority: Ollama → HuggingFace Transformers → Deterministic Fallback
+HONEYPOT = {
+    # Master switch — set False to disable honeypot generation entirely
+    "ENABLED": config("HONEYPOT_ENABLED", default=True, cast=bool),
+    # Backend: "auto" (try Ollama→Transformers→Fallback), "ollama", "transformers", "fallback"
+    "LLM_BACKEND": config("HONEYPOT_LLM_BACKEND", default="auto"),
+    # Ollama settings (used when backend is "auto" or "ollama")
+    "OLLAMA_BASE_URL": config("OLLAMA_BASE_URL", default="http://localhost:11434"),
+    "OLLAMA_MODEL": config("OLLAMA_MODEL", default="llama3"),
+    "OLLAMA_TIMEOUT": config("OLLAMA_TIMEOUT", default=30, cast=int),
+    # HuggingFace Transformers settings (used when backend is "auto" or "transformers")
+    "TRANSFORMERS_MODEL": config("HONEYPOT_TRANSFORMERS_MODEL", default="distilgpt2"),
+    # Number of decoy passwords to generate per user
+    "DECOY_PASSWORDS_COUNT": config("HONEYPOT_DECOY_PASSWORDS", default=4, cast=int),
+}
+

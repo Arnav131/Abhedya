@@ -47,4 +47,9 @@ __pycache__/
 .coverage
 htmlcov/
 
+# Databases
+*.sqlite3
+db.sqlite3
+
 Changes/
+

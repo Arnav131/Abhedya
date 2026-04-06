@@ -5,15 +5,18 @@ Generates realistic-looking but completely fake secrets (API keys, JWTs,
 database URLs, private keys, OAuth tokens) to act as canary traps inside
 the vault database.
 
-How it works
-------------
-1. **Primary path** — calls a local Ollama LLM (e.g. llama3, mistral) to
-   produce structurally valid fake credentials via carefully engineered
-   prompts.
-2. **Fallback path** — if Ollama is unreachable (timeout, not installed,
-   model not pulled), a deterministic Python generator produces secrets
-   with identical format guarantees. This ensures the system NEVER fails
-   to create honeypots, satisfying NFR-3 (Graceful Degradation).
+How it works — 3-tier LLM Strategy
+-----------------------------------
+1. **Tier 1 — Ollama** (best quality): calls a local Ollama LLM (e.g.
+   llama3, mistral) via localhost REST API.  Requires Ollama server.
+2. **Tier 2 — HuggingFace Transformers** (medium quality): uses a small
+   local model (distilgpt2) via the ``transformers`` library.  No server
+   needed — runs in-process on CPU or CUDA GPU.
+3. **Tier 3 — Deterministic fallback** (guaranteed): pure Python generator
+   using ``secrets`` module. Zero external dependencies.
+
+The engine tries each tier in order and falls back automatically, ensuring
+the system NEVER fails (NFR-3: Graceful Degradation).
 
 Security guarantees
 -------------------
@@ -22,7 +25,8 @@ Security guarantees
     checksums / account IDs.
   • No real service will ever accept these credentials.
   • Raw honeypot content is NEVER logged to console or disk.
-  • The module makes zero external network calls (Ollama runs on localhost).
+  • The module makes zero external network calls (Ollama runs on localhost;
+    Transformers runs fully in-process).
 
 Django integration
 ------------------
@@ -56,11 +60,25 @@ logger = logging.getLogger("securevault.honeypot")
 logger.setLevel(logging.INFO)
 
 # ---------------------------------------------------------------------------
-# Configuration
+# Configuration — read from Django settings or env vars
 # ---------------------------------------------------------------------------
+def _get_config() -> Dict[str, Any]:
+    """Pull HONEYPOT settings from Django (if loaded) or fall back to env vars."""
+    try:
+        from django.conf import settings
+        return getattr(settings, "HONEYPOT", {})
+    except Exception:
+        return {}
+
+
+def _cfg(key: str, default: Any = None) -> Any:
+    return _get_config().get(key, os.environ.get(key, default))
+
+
 OLLAMA_BASE_URL: str = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.environ.get("OLLAMA_MODEL", "llama3")
 OLLAMA_TIMEOUT: int = int(os.environ.get("OLLAMA_TIMEOUT", "30"))
+TRANSFORMERS_MODEL: str = os.environ.get("HONEYPOT_TRANSFORMERS_MODEL", "distilgpt2")
 MAX_RETRIES: int = 3
 RETRY_BACKOFF: float = 1.5  # seconds, multiplied on each retry
 
@@ -154,7 +172,86 @@ class OllamaClient:
 
 
 # ============================================================================
-#  2. PROMPT ENGINEERING
+#  2. HUGGINGFACE TRANSFORMERS CLIENT (Tier 2)
+# ============================================================================
+
+class TransformersClient:
+    """Local text-generation pipeline using HuggingFace Transformers.
+
+    Lazy-loads the model and tokenizer on first use so importing this
+    module is effectively free.  Uses CPU by default; if CUDA is available
+    and torch is compiled with CUDA support, it will auto-detect the GPU.
+    """
+
+    _pipeline = None  # class-level singleton
+
+    def __init__(self, model_name: str = TRANSFORMERS_MODEL) -> None:
+        self.model_name = model_name
+
+    def _load_pipeline(self):
+        """Lazy-load the transformers pipeline (heavy, ~200MB for distilgpt2)."""
+        if TransformersClient._pipeline is not None:
+            return TransformersClient._pipeline
+
+        try:
+            import torch
+            from transformers import pipeline as hf_pipeline
+
+            device = 0 if torch.cuda.is_available() else -1
+            TransformersClient._pipeline = hf_pipeline(
+                "text-generation",
+                model=self.model_name,
+                device=device,
+                framework="pt",
+            )
+            logger.info(
+                "Transformers pipeline loaded: model=%s, device=%s",
+                self.model_name, "CUDA" if device == 0 else "CPU",
+            )
+            return TransformersClient._pipeline
+        except Exception as exc:
+            logger.warning("Failed to load Transformers pipeline: %s", exc)
+            return None
+
+    def generate(self, prompt: str, temperature: float = 0.9) -> Optional[str]:
+        """Generate text using the local Transformers model.
+
+        Returns None if the model can't be loaded or generation fails.
+        """
+        pipe = self._load_pipeline()
+        if pipe is None:
+            return None
+
+        try:
+            result = pipe(
+                prompt,
+                max_length=min(len(prompt) + 2048, 4096),
+                num_return_sequences=1,
+                temperature=temperature,
+                top_k=50,
+                do_sample=True,
+            )
+            generated = result[0].get("generated_text", "")
+            # Strip the prompt prefix from the output
+            if generated.startswith(prompt):
+                generated = generated[len(prompt):]
+            return generated.strip()
+        except Exception as exc:
+            logger.warning("Transformers generation failed: %s", exc)
+            return None
+
+    def is_available(self) -> bool:
+        """Check if transformers and torch are importable."""
+        try:
+            import torch  # noqa: F401
+            import transformers  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+
+# ============================================================================
+#  3. PROMPT ENGINEERING
 # ============================================================================
 
 _HONEYPOT_PROMPT = textwrap.dedent("""\
@@ -221,25 +318,16 @@ def _build_prompt(user_id: str) -> str:
 
 
 # ============================================================================
-#  3. LLM-BASED GENERATOR
+#  4. LLM-BASED GENERATORS
 # ============================================================================
 
-def _generate_via_llm(user_id: str, client: OllamaClient) -> Optional[Dict[str, Any]]:
-    """Attempt to generate honeypots using the local LLM.
-
-    Returns ``None`` if Ollama is unavailable or the response can't be
-    parsed into valid JSON.
-    """
-    prompt = _build_prompt(user_id)
-    raw_response = client.generate(prompt, temperature=0.9)
-
-    if raw_response is None:
+def _parse_llm_json(raw_response: str) -> Optional[Dict[str, Any]]:
+    """Parse and validate LLM JSON output, stripping markdown fences."""
+    if not raw_response:
         return None
 
-    # Strip markdown fences if the LLM wraps its output.
     cleaned = raw_response.strip()
     if cleaned.startswith("```"):
-        # Remove opening fence (possibly ```json)
         first_newline = cleaned.index("\n") if "\n" in cleaned else 3
         cleaned = cleaned[first_newline + 1:]
     if cleaned.endswith("```"):
@@ -248,7 +336,6 @@ def _generate_via_llm(user_id: str, client: OllamaClient) -> Optional[Dict[str, 
 
     try:
         parsed = json.loads(cleaned)
-        # Basic structural validation.
         required_keys = {"api_keys", "jwt_tokens", "db_urls", "private_keys", "oauth_tokens"}
         if not required_keys.issubset(parsed.keys()):
             logger.warning("LLM response missing required keys — falling back.")
@@ -259,8 +346,39 @@ def _generate_via_llm(user_id: str, client: OllamaClient) -> Optional[Dict[str, 
         return None
 
 
+def _generate_via_llm(user_id: str, client: OllamaClient) -> Optional[Dict[str, Any]]:
+    """Attempt to generate honeypots using the local Ollama LLM (Tier 1).
+
+    Returns ``None`` if Ollama is unavailable or the response can't be
+    parsed into valid JSON.
+    """
+    prompt = _build_prompt(user_id)
+    raw_response = client.generate(prompt, temperature=0.9)
+    return _parse_llm_json(raw_response)
+
+
+def _generate_via_transformers(user_id: str, client: TransformersClient) -> Optional[Dict[str, Any]]:
+    """Attempt to generate honeypots using HuggingFace Transformers (Tier 2).
+
+    Returns ``None`` if Transformers is unavailable or the response can't
+    be parsed into valid JSON.
+    """
+    prompt = _build_prompt(user_id)
+    raw_response = client.generate(prompt, temperature=0.9)
+    result = _parse_llm_json(raw_response)
+
+    if result is None:
+        # Small models like distilgpt2 rarely produce valid structured JSON.
+        # This is expected — the fallback generator will handle it.
+        logger.info(
+            "Transformers model did not produce valid JSON — "
+            "this is expected for small models. Using fallback."
+        )
+    return result
+
+
 # ============================================================================
-#  4. DETERMINISTIC FALLBACK GENERATOR
+#  5. DETERMINISTIC FALLBACK GENERATOR (Tier 3)
 # ============================================================================
 #
 # This generator uses Python's `secrets` module for cryptographic randomness
@@ -493,7 +611,7 @@ def _generate_fallback(user_id: str) -> Dict[str, Any]:
 
 
 # ============================================================================
-#  5. PUBLIC API
+#  6. PUBLIC API
 # ============================================================================
 
 def generate_honeypots(
@@ -505,12 +623,17 @@ def generate_honeypots(
 ) -> Dict[str, Any]:
     """Generate a full set of honeypot decoy secrets for a user.
 
+    Uses a 3-tier strategy:
+      1. Ollama LLM (localhost server — best quality)
+      2. HuggingFace Transformers (in-process — medium quality)
+      3. Deterministic Python fallback (guaranteed — no deps)
+
     Parameters
     ----------
     user_id : str
         Unique user identifier (used for seeding, never logged).
     use_llm : bool
-        If True (default), attempt to use the local Ollama LLM first.
+        If True (default), attempt LLM-based generation (Tiers 1 & 2).
         Falls back to the deterministic generator on failure.
     ollama_model : str, optional
         Override the default Ollama model name.
@@ -531,7 +654,7 @@ def generate_honeypots(
                 "metadata": {
                     "is_honeypot":  True,
                     "created_at":   "<ISO 8601 timestamp>",
-                    "generator":    "llm" | "fallback",
+                    "generator":    "llm" | "transformers" | "fallback",
                     "honeypot_id":  "<UUID>",
                 }
             }
@@ -541,29 +664,53 @@ def generate_honeypots(
     - The ``user_id`` is hashed before use as a seed — it is never stored
       or logged alongside the generated secrets.
     - All generation happens in-memory.  Nothing is written to disk.
-    - No external network calls are made (Ollama runs on localhost).
+    - No external network calls are made (Ollama runs on localhost;
+      Transformers runs fully in-process).
     """
     secrets_bundle: Optional[Dict[str, Any]] = None
     generator_used = "fallback"
+    user_hash = hashlib.sha256(user_id.encode()).hexdigest()[:12]
 
-    # --- Attempt LLM generation ---
-    if use_llm:
+    # Determine configured backend preference
+    config = _get_config()
+    backend = config.get("LLM_BACKEND", "auto")
+
+    # --- Tier 1: Ollama LLM ---
+    if use_llm and backend in ("auto", "ollama"):
         client = OllamaClient(
-            base_url=ollama_url or OLLAMA_BASE_URL,
-            model=ollama_model or OLLAMA_MODEL,
+            base_url=ollama_url or config.get("OLLAMA_BASE_URL", OLLAMA_BASE_URL),
+            model=ollama_model or config.get("OLLAMA_MODEL", OLLAMA_MODEL),
         )
         secrets_bundle = _generate_via_llm(user_id, client)
         if secrets_bundle is not None:
             generator_used = "llm"
-            logger.info("Honeypots generated via LLM for user (hash: %s).",
-                        hashlib.sha256(user_id.encode()).hexdigest()[:12])
+            logger.info(
+                "Honeypots generated via Ollama LLM (Tier 1) for user (hash: %s).",
+                user_hash,
+            )
 
-    # --- Fallback ---
+    # --- Tier 2: HuggingFace Transformers ---
+    if secrets_bundle is None and use_llm and backend in ("auto", "transformers"):
+        tf_client = TransformersClient(
+            model_name=config.get("TRANSFORMERS_MODEL", TRANSFORMERS_MODEL),
+        )
+        if tf_client.is_available():
+            secrets_bundle = _generate_via_transformers(user_id, tf_client)
+            if secrets_bundle is not None:
+                generator_used = "transformers"
+                logger.info(
+                    "Honeypots generated via Transformers (Tier 2) for user (hash: %s).",
+                    user_hash,
+                )
+
+    # --- Tier 3: Deterministic Fallback ---
     if secrets_bundle is None:
         secrets_bundle = _generate_fallback(user_id)
         generator_used = "fallback"
-        logger.info("Honeypots generated via fallback for user (hash: %s).",
-                     hashlib.sha256(user_id.encode()).hexdigest()[:12])
+        logger.info(
+            "Honeypots generated via fallback (Tier 3) for user (hash: %s).",
+            user_hash,
+        )
 
     # --- Attach metadata ---
     secrets_bundle["metadata"] = {
@@ -574,6 +721,38 @@ def generate_honeypots(
     }
 
     return secrets_bundle
+
+
+def generate_decoy_passwords(
+    real_password_length: int = 12,
+    count: int = 4,
+) -> List[str]:
+    """Generate fake decoy passwords using the local LLM or fallback.
+
+    Unlike `generate_honeypots()` this produces password-style strings
+    rather than structured API credentials.  Useful for the password
+    honeytoken defense where fake passwords are stored alongside the
+    real (encrypted) one.
+
+    Parameters
+    ----------
+    real_password_length : int
+        Target length for generated passwords (matches the real password).
+    count : int
+        Number of decoy passwords to generate.
+
+    Returns
+    -------
+    list[str]
+        List of fake password strings.
+    """
+    import string as string_mod
+
+    charset = string_mod.ascii_letters + string_mod.digits + "!@#$%^&*"
+    return [
+        "".join(secrets.choice(charset) for _ in range(real_password_length))
+        for _ in range(count)
+    ]
 
 
 def generate_single_category(
@@ -615,7 +794,7 @@ def generate_single_category(
 
 
 # ============================================================================
-#  6. VALIDATION UTILITIES
+#  7. VALIDATION UTILITIES
 # ============================================================================
 
 def validate_honeypot_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
@@ -690,7 +869,7 @@ def validate_honeypot_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ============================================================================
-#  7. CLI ENTRY POINT (standalone testing)
+#  8. CLI ENTRY POINT (standalone testing)
 # ============================================================================
 
 if __name__ == "__main__":

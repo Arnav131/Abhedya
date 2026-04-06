@@ -10,3 +10,7 @@ whitenoise>=6.7
 dj-database-url>=2.2
 psycopg2-binary>=2.9
 python-decouple>=3.8
+
+# === AI / Local LLM (Phase 3 — Honeypot Deception Engine) ===
+torch>=2.2
+transformers>=4.40
