@@ -83,6 +83,14 @@ MAX_RETRIES: int = 3
 RETRY_BACKOFF: float = 1.5  # seconds, multiplied on each retry
 
 
+def _int_or_default(value: Any, default: int) -> int:
+    """Safely cast to int with fallback."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 # ============================================================================
 #  1. OLLAMA CLIENT
 # ============================================================================
@@ -620,6 +628,7 @@ def generate_honeypots(
     use_llm: bool = True,
     ollama_model: Optional[str] = None,
     ollama_url: Optional[str] = None,
+    ollama_timeout: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Generate a full set of honeypot decoy secrets for a user.
 
@@ -639,6 +648,8 @@ def generate_honeypots(
         Override the default Ollama model name.
     ollama_url : str, optional
         Override the default Ollama base URL.
+    ollama_timeout : int, optional
+        Override Ollama request timeout (seconds).
 
     Returns
     -------
@@ -673,13 +684,18 @@ def generate_honeypots(
 
     # Determine configured backend preference
     config = _get_config()
-    backend = config.get("LLM_BACKEND", "auto")
+    backend = str(config.get("LLM_BACKEND", "auto")).lower()
+    timeout_value = _int_or_default(
+        ollama_timeout if ollama_timeout is not None else config.get("OLLAMA_TIMEOUT", OLLAMA_TIMEOUT),
+        OLLAMA_TIMEOUT,
+    )
 
     # --- Tier 1: Ollama LLM ---
     if use_llm and backend in ("auto", "ollama"):
         client = OllamaClient(
             base_url=ollama_url or config.get("OLLAMA_BASE_URL", OLLAMA_BASE_URL),
             model=ollama_model or config.get("OLLAMA_MODEL", OLLAMA_MODEL),
+            timeout=timeout_value,
         )
         secrets_bundle = _generate_via_llm(user_id, client)
         if secrets_bundle is not None:
@@ -721,6 +737,87 @@ def generate_honeypots(
     }
 
     return secrets_bundle
+
+
+def get_local_llm_status(
+    *,
+    backend: Optional[str] = None,
+    ollama_model: Optional[str] = None,
+    ollama_url: Optional[str] = None,
+    ollama_timeout: Optional[int] = None,
+    transformers_model: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Return local LLM connectivity/availability status.
+
+    This performs lightweight availability checks and chooses the effective
+    runtime mode for honeypot generation.
+    """
+    config = _get_config()
+    selected_backend = str(backend or config.get("LLM_BACKEND", "auto")).lower()
+
+    resolved_ollama_url = ollama_url or config.get("OLLAMA_BASE_URL", OLLAMA_BASE_URL)
+    resolved_ollama_model = ollama_model or config.get("OLLAMA_MODEL", OLLAMA_MODEL)
+    resolved_ollama_timeout = _int_or_default(
+        ollama_timeout if ollama_timeout is not None else config.get("OLLAMA_TIMEOUT", OLLAMA_TIMEOUT),
+        OLLAMA_TIMEOUT,
+    )
+    resolved_transformers_model = (
+        transformers_model
+        or config.get("TRANSFORMERS_MODEL")
+        or config.get("HONEYPOT_TRANSFORMERS_MODEL")
+        or TRANSFORMERS_MODEL
+    )
+
+    ollama_available = False
+    transformers_available = False
+
+    if selected_backend in ("auto", "ollama"):
+        try:
+            ollama_available = OllamaClient(
+                base_url=resolved_ollama_url,
+                model=resolved_ollama_model,
+                timeout=resolved_ollama_timeout,
+            ).is_available()
+        except Exception:
+            ollama_available = False
+
+    if selected_backend in ("auto", "transformers"):
+        try:
+            transformers_available = TransformersClient(
+                model_name=resolved_transformers_model,
+            ).is_available()
+        except Exception:
+            transformers_available = False
+
+    if selected_backend == "ollama":
+        effective_mode = "ollama" if ollama_available else "fallback"
+    elif selected_backend == "transformers":
+        effective_mode = "transformers" if transformers_available else "fallback"
+    elif selected_backend == "fallback":
+        effective_mode = "fallback"
+    else:
+        if ollama_available:
+            effective_mode = "ollama"
+        elif transformers_available:
+            effective_mode = "transformers"
+        else:
+            effective_mode = "fallback"
+
+    return {
+        "backend_config": selected_backend,
+        "effective_mode": effective_mode,
+        "llm_available": effective_mode in ("ollama", "transformers"),
+        "ollama": {
+            "available": ollama_available,
+            "base_url": resolved_ollama_url,
+            "model": resolved_ollama_model,
+            "timeout": resolved_ollama_timeout,
+        },
+        "transformers": {
+            "available": transformers_available,
+            "model": resolved_transformers_model,
+        },
+    }
 
 
 def generate_decoy_passwords(
