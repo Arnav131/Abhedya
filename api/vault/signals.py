@@ -27,8 +27,8 @@ def _get_honeypot_config():
     """Retrieve HONEYPOT settings with safe defaults."""
     return getattr(settings, "HONEYPOT", {
         "ENABLED": True,
-        "LLM_BACKEND": "auto",
-        "USE_LLM_ON_REGISTRATION": False,
+        "LLM_BACKEND": "ollama",
+        "USE_LLM_ON_REGISTRATION": True,
         "DECOY_PASSWORDS_COUNT": 4,
     })
 
@@ -39,7 +39,7 @@ def _generate_and_store_honeypots(user_id: int) -> int:
 
     Returns number of created rows. All errors are caught and logged.
     """
-    from ai_engine.honeypot_llm import generate_honeypots
+    from ai_engine.honeypot_llm import generate_honeypots, get_local_llm_status
     from vault.honeypot_models import HoneypotEntry
 
     try:
@@ -61,14 +61,24 @@ def _generate_and_store_honeypots(user_id: int) -> int:
             return 0
 
         # Determine LLM backend preference
-        backend = config.get("LLM_BACKEND", "auto")
-        # Reliability first: registrations use deterministic fallback unless
-        # explicitly enabled via settings.
-        use_llm = bool(config.get("USE_LLM_ON_REGISTRATION", False)) and backend != "fallback"
+        backend = str(config.get("LLM_BACKEND", "ollama")).lower()
+        registration_prefers_llm = bool(config.get("USE_LLM_ON_REGISTRATION", True))
+
+        llm_status = get_local_llm_status(
+            backend=backend,
+            ollama_model=config.get("OLLAMA_MODEL"),
+            ollama_url=config.get("OLLAMA_BASE_URL"),
+            ollama_timeout=config.get("OLLAMA_TIMEOUT"),
+            transformers_model=config.get("TRANSFORMERS_MODEL"),
+        )
+        use_llm = registration_prefers_llm and llm_status.get("llm_available", False)
 
         logger.info(
-            "Generating honeypots for user (hash: %s) via backend=%s, use_llm=%s",
-            user_hash, backend, use_llm,
+            "Generating honeypots for user (hash: %s) via backend=%s, mode=%s, use_llm=%s",
+            user_hash,
+            backend,
+            llm_status.get("effective_mode"),
+            use_llm,
         )
 
         # Generate the full bundle
@@ -77,6 +87,7 @@ def _generate_and_store_honeypots(user_id: int) -> int:
             use_llm=use_llm,
             ollama_model=config.get("OLLAMA_MODEL"),
             ollama_url=config.get("OLLAMA_BASE_URL"),
+            ollama_timeout=config.get("OLLAMA_TIMEOUT"),
         )
 
         metadata = bundle.get("metadata", {})
