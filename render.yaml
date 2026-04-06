@@ -1,0 +1,52 @@
+databases:
+  - name: abhedya-postgres
+    plan: starter
+    databaseName: abhedya
+    user: abhedya
+
+services:
+  - type: web
+    name: abhedya-api
+    runtime: python
+    rootDir: api
+    plan: starter
+    autoDeploy: true
+    buildCommand: bash build.sh
+    preDeployCommand: python manage.py migrate --noinput && python manage.py ensure_superuser
+    startCommand: gunicorn abhedya_api.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: abhedya-postgres
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        value: "127.0.0.1,localhost"
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
+      - key: DJANGO_SUPERUSER_CREATE
+        value: "False"
+      - key: DJANGO_SUPERUSER_USERNAME
+        value: "admin"
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
+      - key: DJANGO_SUPERUSER_RESET_PASSWORD
+        value: "False"
+      - key: HONEYPOT_USE_LLM_ON_REGISTRATION
+        value: "False"
+      - key: HONEYPOT_LLM_BACKEND
+        value: "fallback"
+      - key: HONEYPOT_ALERT_ENABLED
+        value: "False"
