@@ -14,6 +14,12 @@ import string
 from dataclasses import dataclass, field, asdict
 from typing import List, Optional
 
+try:
+    from .pytorch_model import predict_strength_detailed
+except Exception:  # pragma: no cover
+    # Keep auditor resilient even if model deps are missing.
+    predict_strength_detailed = None  # type: ignore[assignment]
+
 
 @dataclass
 class RiskProfile:
@@ -403,6 +409,81 @@ def _analyze_password_strength(s: str) -> RiskProfile:
         )
 
 
+def _analyze_password_with_model(s: str) -> Optional[RiskProfile]:
+    """Run ML-backed password predictability analysis when available.
+
+    Returns None if model inference is unavailable, allowing graceful
+    fallback to heuristic-only scoring.
+    """
+    if predict_strength_detailed is None:
+        return None
+
+    try:
+        ml = predict_strength_detailed(s)
+    except Exception:
+        return None
+
+    model_score = float(ml.get("score", 0.5))
+    model_label = str(ml.get("label", "medium")).lower()
+    entropy_score = float(ml.get("entropy_score", 0.5))
+    risk_score = max(0, min(100, int(round(model_score * 100))))
+
+    if model_label == "weak":
+        return RiskProfile(
+            identified_type="Weak Password (AI Model)",
+            risk_level="critical",
+            risk_score=max(75, risk_score),
+            recommendations=[
+                "This secret is highly predictable according to the trained model.",
+                "Use a unique passphrase with 16+ characters.",
+                "Mix uppercase, lowercase, numbers, and symbols.",
+            ],
+            details={
+                "model_label": model_label,
+                "model_predictability": round(model_score, 4),
+                "entropy_score": round(entropy_score, 4),
+                "length": len(s),
+                "engine": "pytorch_bilstm",
+            },
+        )
+
+    if model_label == "medium":
+        return RiskProfile(
+            identified_type="Moderate Password (AI Model)",
+            risk_level="warning",
+            risk_score=max(35, min(74, risk_score)),
+            recommendations=[
+                "This secret is moderately predictable.",
+                "Increase length and avoid dictionary-like patterns.",
+                "Prefer generated passphrases for important accounts.",
+            ],
+            details={
+                "model_label": model_label,
+                "model_predictability": round(model_score, 4),
+                "entropy_score": round(entropy_score, 4),
+                "length": len(s),
+                "engine": "pytorch_bilstm",
+            },
+        )
+
+    return RiskProfile(
+        identified_type="Strong Password / Secret (AI Model)",
+        risk_level="safe",
+        risk_score=min(30, risk_score),
+        recommendations=[
+            "This looks statistically strong according to the trained model.",
+            "Keep using unique secrets per service.",
+        ],
+        details={
+            "model_label": model_label,
+            "model_predictability": round(model_score, 4),
+            "entropy_score": round(entropy_score, 4),
+            "length": len(s),
+            "engine": "pytorch_bilstm",
+        },
+    )
+
+
 # ════════════════════════════════════════════
 # Main Analysis Pipeline
 # ════════════════════════════════════════════
@@ -450,5 +531,24 @@ def analyze(secret: str) -> dict:
         if result is not None:
             return result.to_dict()
 
-    # Fallback: treat as password
-    return _analyze_password_strength(s).to_dict()
+    # Hybrid password analysis: combine ML + heuristic and keep higher risk.
+    heuristic_result = _analyze_password_strength(s)
+    ml_result = _analyze_password_with_model(s)
+
+    if ml_result is None:
+        return heuristic_result.to_dict()
+
+    chosen = ml_result if ml_result.risk_score >= heuristic_result.risk_score else heuristic_result
+    chosen.details = dict(chosen.details)
+    chosen.details.update(
+        {
+            "analysis_mode": "hybrid_conservative",
+            "heuristic_risk_score": heuristic_result.risk_score,
+            "ml_risk_score": ml_result.risk_score,
+            "ml_model_label": ml_result.details.get("model_label"),
+            "ml_predictability": ml_result.details.get("model_predictability"),
+            "ml_entropy_score": ml_result.details.get("entropy_score"),
+        }
+    )
+
+    return chosen.to_dict()

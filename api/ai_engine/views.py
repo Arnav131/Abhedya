@@ -21,9 +21,9 @@ class AuditView(APIView):
     """
     Ephemeral secret analysis endpoint.
 
-    Receives a plaintext secret, runs heuristic analysis,
-    and returns a structured risk profile. The secret is
-    never persisted anywhere — it lives only in request memory.
+    Receives a plaintext secret, runs detector + model analysis,
+    and returns a structured risk profile. The secret is never
+    persisted anywhere — it lives only in request memory.
     """
 
     permission_classes = [IsAuthenticated]
