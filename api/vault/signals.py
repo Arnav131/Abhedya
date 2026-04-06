@@ -4,23 +4,23 @@ Vault Signals — Automatic Honeypot Generation on Registration
 When a new User is created (via RegisterView or Django admin), this signal
 fires and generates a full set of honeypot decoy secrets using the AI engine.
 
-The generation runs in a background daemon thread so it never blocks the
-registration HTTP response.  If anything fails, the error is logged and
-the user's account is still created normally (NFR-3: Graceful Degradation).
+Generation is executed synchronously with deterministic fallback by default,
+so entries are guaranteed to exist immediately after registration.
+If anything fails, the error is logged and the user's account is still
+created normally (NFR-3: Graceful Degradation).
 """
 
 import hashlib
 import logging
-import threading
 import uuid
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.db import close_old_connections, connections, transaction
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-logger = logging.getLogger("securevault.honeypot.signals")
+logger = logging.getLogger("abhedya.honeypot.signals")
 
 
 def _get_honeypot_config():
@@ -28,41 +28,52 @@ def _get_honeypot_config():
     return getattr(settings, "HONEYPOT", {
         "ENABLED": True,
         "LLM_BACKEND": "auto",
+        "USE_LLM_ON_REGISTRATION": False,
         "DECOY_PASSWORDS_COUNT": 4,
     })
 
 
-def _generate_and_store_honeypots(user):
+def _generate_and_store_honeypots(user_id: int) -> int:
     """
     Generate honeypot secrets and persist them as HoneypotEntry rows.
 
-    This runs in a background thread — all errors are caught and logged.
-    Django doesn't manage DB connections for manually-created threads,
-    so we explicitly handle connection lifecycle here.
+    Returns number of created rows. All errors are caught and logged.
     """
     from ai_engine.honeypot_llm import generate_honeypots
     from vault.honeypot_models import HoneypotEntry
 
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        logger.warning("Skipping honeypot generation: user id=%s no longer exists.", user_id)
+        return 0
+
     config = _get_honeypot_config()
-    user_id = str(user.id)
-    user_hash = hashlib.sha256(user_id.encode()).hexdigest()[:12]
+    user_id_str = str(user.id)
+    user_hash = hashlib.sha256(user_id_str.encode()).hexdigest()[:12]
 
     try:
-        # Ensure a fresh DB connection for this thread
-        close_old_connections()
+        if HoneypotEntry.objects.filter(user=user).exists():
+            logger.info(
+                "Honeypots already exist for user (hash: %s) — skipping generation.",
+                user_hash,
+            )
+            return 0
 
         # Determine LLM backend preference
         backend = config.get("LLM_BACKEND", "auto")
-        use_llm = backend != "fallback"
+        # Reliability first: registrations use deterministic fallback unless
+        # explicitly enabled via settings.
+        use_llm = bool(config.get("USE_LLM_ON_REGISTRATION", False)) and backend != "fallback"
 
         logger.info(
-            "Generating honeypots for new user (hash: %s) via backend=%s",
-            user_hash, backend,
+            "Generating honeypots for user (hash: %s) via backend=%s, use_llm=%s",
+            user_hash, backend, use_llm,
         )
 
         # Generate the full bundle
         bundle = generate_honeypots(
-            user_id=user_id,
+            user_id=user_id_str,
             use_llm=use_llm,
             ollama_model=config.get("OLLAMA_MODEL"),
             ollama_url=config.get("OLLAMA_BASE_URL"),
@@ -164,6 +175,7 @@ def _generate_and_store_honeypots(user):
             "[batch: %s, generator: %s]",
             len(entries), user_hash, honeypot_batch_id, generator_choice,
         )
+        return len(entries)
 
     except Exception as exc:
         # NFR-3: Never let honeypot generation break registration
@@ -173,17 +185,13 @@ def _generate_and_store_honeypots(user):
             user_hash, exc,
             exc_info=True,
         )
-    finally:
-        # Clean up DB connections for this thread
-        connections.close_all()
+        return 0
 
 
 @receiver(post_save, sender=User)
 def create_honeypots_on_registration(sender, instance, created, **kwargs):
     """
     Signal handler: generate honeypot decoys when a new user is created.
-
-    Runs in a daemon thread so the registration response is instant.
     """
     if not created:
         return
@@ -193,14 +201,9 @@ def create_honeypots_on_registration(sender, instance, created, **kwargs):
         logger.info("Honeypot generation is disabled — skipping.")
         return
 
-    thread = threading.Thread(
-        target=_generate_and_store_honeypots,
-        args=(instance,),
-        daemon=True,
-        name=f"honeypot-gen-{instance.username}",
-    )
-    thread.start()
+    created_count = _generate_and_store_honeypots(instance.id)
     logger.info(
-        "Honeypot generation thread started for user '%s'.",
+        "Honeypot generation completed for user '%s' (created=%d).",
         instance.username,
+        created_count,
     )

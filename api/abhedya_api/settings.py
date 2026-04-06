@@ -1,5 +1,5 @@
 """
-Django settings for SecureVault API.
+Django settings for Abhedya API.
 
 Deployment-ready configuration using environment variables.
 - Dev: SQLite + DEBUG=True (just create a .env from .env.example)
@@ -55,7 +55,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "securevault_api.urls"
+ROOT_URLCONF = "abhedya_api.urls"
 
 TEMPLATES = [
     {
@@ -73,7 +73,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "securevault_api.wsgi.application"
+WSGI_APPLICATION = "abhedya_api.wsgi.application"
 
 # ──────────────────────────────────────────────
 # Database
@@ -183,6 +183,8 @@ if not DEBUG:
 HONEYPOT = {
     # Master switch — set False to disable honeypot generation entirely
     "ENABLED": config("HONEYPOT_ENABLED", default=True, cast=bool),
+    # Reliability mode for registration: False keeps generation fast/deterministic.
+    "USE_LLM_ON_REGISTRATION": config("HONEYPOT_USE_LLM_ON_REGISTRATION", default=False, cast=bool),
     # Backend: "auto" (try Ollama→Transformers→Fallback), "ollama", "transformers", "fallback"
     "LLM_BACKEND": config("HONEYPOT_LLM_BACKEND", default="auto"),
     # Ollama settings (used when backend is "auto" or "ollama")

@@ -300,17 +300,6 @@ export default function AddItem() {
                 </div>
               </div>
             </div>
-
-            <div className="card add__warning-card">
-              <span className="icon text-error">warning</span>
-              <div>
-                <h4>Audit Warning</h4>
-                <p className="text-muted" style={{ fontSize: '0.82rem' }}>
-                  The audit briefly sends the plaintext to our server for pattern matching only.
-                  No external APIs are called. The string is discarded immediately after analysis.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
 

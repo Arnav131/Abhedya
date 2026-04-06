@@ -1,4 +1,4 @@
-# 🔐 SecureVault – Software Requirements Specification  
+# 🔐 Abhedya – Software Requirements Specification  
 **Version:** 3.0 *(Hackathon Master Blueprint)*  
 **Hardware Target:** NVIDIA RTX 5070 (CUDA Enabled)
 
@@ -7,7 +7,7 @@
 ## 1. Introduction
 
 ### 1.1 Purpose
-SecureVault is an intelligent, zero-knowledge secrets manager designed for both standard users and developers. It securely stores credentials while utilizing **on-device, GPU-accelerated AI** to proactively defend against breaches and audit user behavior — without exposing plaintext data to external APIs.
+Abhedya is an intelligent, zero-knowledge secrets manager designed for both standard users and developers. It securely stores credentials while utilizing **on-device, GPU-accelerated AI** to proactively defend against breaches and audit user behavior — without exposing plaintext data to external APIs.
 
 ---
 
@@ -44,7 +44,7 @@ This specification outlines the three phases of a **24-hour hackathon build**:
 ## 3. Folder Structure
 
 ```plaintext
-securevault_root/
+abhedya_root/
 ├── README.md
 ├── frontend/                  # React UI & Client-Side Cryptography
 │   ├── src/
@@ -57,7 +57,7 @@ securevault_root/
 │
 └── backend/                   # Django Backend & AI Engines
     ├── manage.py
-    ├── securevault_api/       # Core settings & routing
+    ├── abhedya_api/       # Core settings & routing
     ├── vault/                 # Main App
     │   ├── models.py          # VaultEntry (Ciphertext + Metadata)
     │   ├── views.py           # API Endpoints

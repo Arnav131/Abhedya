@@ -219,17 +219,6 @@
   line-height: 1.4;
 }
 
-.add__warning-card {
-  display: flex;
-  gap: var(--space-md);
-  align-items: flex-start;
-  animation: riseIn 420ms var(--motion-emphasis) 160ms both;
-}
-
-.add__warning-card h4 {
-  margin-bottom: 4px;
-}
-
 /* Responsive */
 @media (max-width: 1024px) {
   .add__layout {

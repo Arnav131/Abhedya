@@ -1,5 +1,5 @@
 """
-SecureVault — Honeypot Deception Engine
+Abhedya — Honeypot Deception Engine
 =======================================
 Generates realistic-looking but completely fake secrets (API keys, JWTs,
 database URLs, private keys, OAuth tokens) to act as canary traps inside
@@ -56,7 +56,7 @@ from typing import Any, Dict, List, Optional
 # ---------------------------------------------------------------------------
 # Logging — NEVER emit secret content
 # ---------------------------------------------------------------------------
-logger = logging.getLogger("securevault.honeypot")
+logger = logging.getLogger("abhedya.honeypot")
 logger.setLevel(logging.INFO)
 
 # ---------------------------------------------------------------------------
@@ -521,7 +521,7 @@ def _generate_db_url() -> str:
         "172.16.3.15",
     ])
     port = secrets.choice([5432, 5433, 6432])
-    db = secrets.choice(["securevault_prod", "vault_main", "credentials_db", "secrets_store"])
+    db = secrets.choice(["abhedya_prod", "vault_main", "credentials_db", "secrets_store"])
     return f"postgres://{user}:{password}@{host}:{port}/{db}"
 
 
@@ -877,7 +877,7 @@ if __name__ == "__main__":
     import sys
 
     parser = argparse.ArgumentParser(
-        description="SecureVault Honeypot Deception Engine"
+        description="Abhedya Honeypot Deception Engine"
     )
     sub = parser.add_subparsers(dest="command")
 

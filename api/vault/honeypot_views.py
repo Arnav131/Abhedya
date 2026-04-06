@@ -23,7 +23,7 @@ from rest_framework.views import APIView
 
 from .honeypot_models import HoneypotEntry
 
-logger = logging.getLogger("securevault.honeypot.views")
+logger = logging.getLogger("abhedya.honeypot.views")
 
 
 class HoneypotStatusView(APIView):

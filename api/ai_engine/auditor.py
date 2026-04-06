@@ -10,15 +10,27 @@ IMPORTANT: This module NEVER persists any data. Analysis is ephemeral.
 
 import re
 import math
+import os
 import string
 from dataclasses import dataclass, field, asdict
 from typing import List, Optional
 
 try:
-    from .pytorch_model import predict_strength_detailed
+    from .pytorch_model import predict_strength_detailed, get_model_runtime_info
 except Exception:  # pragma: no cover
     # Keep auditor resilient even if model deps are missing.
     predict_strength_detailed = None  # type: ignore[assignment]
+    get_model_runtime_info = None  # type: ignore[assignment]
+
+
+def _as_bool(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+# Keep runtime model diagnostics off in public responses by default.
+EXPOSE_MODEL_RUNTIME_DETAILS = _as_bool(
+    os.getenv("ABHEDYA_EXPOSE_MODEL_RUNTIME_DETAILS", "false")
+)
 
 
 @dataclass
@@ -333,7 +345,7 @@ def _analyze_password_strength(s: str) -> RiskProfile:
         )
 
     # Scoring
-    score = 0  # Lower = better (we'll invert for risk)
+    score = 0  # Higher = stronger
 
     # Length scoring
     if length >= 20:
@@ -358,12 +370,15 @@ def _analyze_password_strength(s: str) -> RiskProfile:
     # Character class scoring
     score += num_classes * 8
 
+    # Clamp into a stable range for downstream risk mapping.
+    strength_score = max(0, min(100, score))
+
     # Determine risk
     if score >= 55:
         return RiskProfile(
             identified_type="Strong Password / Secret",
             risk_level="safe",
-            risk_score=max(5, 100 - score),
+            risk_score=max(5, min(30, 100 - strength_score)),
             recommendations=[
                 "This looks like a strong secret. Safe to store.",
             ],
@@ -371,14 +386,14 @@ def _analyze_password_strength(s: str) -> RiskProfile:
                 "length": length,
                 "entropy": round(entropy, 2),
                 "char_classes": classes,
-                "strength_score": score,
+                "strength_score": strength_score,
             },
         )
     elif score >= 30:
         return RiskProfile(
             identified_type="Moderate Password",
             risk_level="warning",
-            risk_score=max(30, 100 - score),
+            risk_score=max(30, min(74, 100 - strength_score)),
             recommendations=[
                 "Consider using a longer passphrase (16+ characters).",
                 "Add more character variety (uppercase, digits, symbols).",
@@ -387,14 +402,14 @@ def _analyze_password_strength(s: str) -> RiskProfile:
                 "length": length,
                 "entropy": round(entropy, 2),
                 "char_classes": classes,
-                "strength_score": score,
+                "strength_score": strength_score,
             },
         )
     else:
         return RiskProfile(
             identified_type="Weak Password",
             risk_level="critical",
-            risk_score=max(75, 100 - score),
+            risk_score=max(75, min(100, 100 - strength_score)),
             recommendations=[
                 "This password is dangerously weak.",
                 "Use a passphrase with 16+ characters mixing letters, digits, and symbols.",
@@ -404,7 +419,7 @@ def _analyze_password_strength(s: str) -> RiskProfile:
                 "length": length,
                 "entropy": round(entropy, 2),
                 "char_classes": classes,
-                "strength_score": score,
+                "strength_score": strength_score,
             },
         )
 
@@ -426,7 +441,41 @@ def _analyze_password_with_model(s: str) -> Optional[RiskProfile]:
     model_score = float(ml.get("score", 0.5))
     model_label = str(ml.get("label", "medium")).lower()
     entropy_score = float(ml.get("entropy_score", 0.5))
+    runtime = {}
+    if EXPOSE_MODEL_RUNTIME_DETAILS and get_model_runtime_info is not None:
+        try:
+            runtime = get_model_runtime_info()
+        except Exception:
+            runtime = {}
+
+    model_kind = str(runtime.get("model_kind", ml.get("model_kind", "unknown")))
+    model_device = str(runtime.get("device", ml.get("device", "unknown")))
+    model_weights_path = str(runtime.get("weights_path", ml.get("weights_path", "")))
+    model_weights_file = str(runtime.get("weights_file", ml.get("weights_file", "")))
+    model_loaded = bool(runtime.get("model_loaded", ml.get("model_loaded", False)))
+    weights_found = bool(runtime.get("weights_found", ml.get("weights_found", False)))
+    engine = "pytorch_model"
     risk_score = max(0, min(100, int(round(model_score * 100))))
+
+    model_details = {
+        "model_label": model_label,
+        "model_predictability": round(model_score, 4),
+        "entropy_score": round(entropy_score, 4),
+        "length": len(s),
+        "engine": engine,
+    }
+
+    if EXPOSE_MODEL_RUNTIME_DETAILS:
+        model_details.update(
+            {
+                "model_kind": model_kind,
+                "model_device": model_device,
+                "model_weights_file": model_weights_file,
+                "model_weights_path": model_weights_path,
+                "model_loaded": model_loaded,
+                "weights_found": weights_found,
+            }
+        )
 
     if model_label == "weak":
         return RiskProfile(
@@ -438,13 +487,7 @@ def _analyze_password_with_model(s: str) -> Optional[RiskProfile]:
                 "Use a unique passphrase with 16+ characters.",
                 "Mix uppercase, lowercase, numbers, and symbols.",
             ],
-            details={
-                "model_label": model_label,
-                "model_predictability": round(model_score, 4),
-                "entropy_score": round(entropy_score, 4),
-                "length": len(s),
-                "engine": "pytorch_bilstm",
-            },
+            details=model_details,
         )
 
     if model_label == "medium":
@@ -457,13 +500,7 @@ def _analyze_password_with_model(s: str) -> Optional[RiskProfile]:
                 "Increase length and avoid dictionary-like patterns.",
                 "Prefer generated passphrases for important accounts.",
             ],
-            details={
-                "model_label": model_label,
-                "model_predictability": round(model_score, 4),
-                "entropy_score": round(entropy_score, 4),
-                "length": len(s),
-                "engine": "pytorch_bilstm",
-            },
+            details=model_details,
         )
 
     return RiskProfile(
@@ -474,13 +511,7 @@ def _analyze_password_with_model(s: str) -> Optional[RiskProfile]:
             "This looks statistically strong according to the trained model.",
             "Keep using unique secrets per service.",
         ],
-        details={
-            "model_label": model_label,
-            "model_predictability": round(model_score, 4),
-            "entropy_score": round(entropy_score, 4),
-            "length": len(s),
-            "engine": "pytorch_bilstm",
-        },
+        details=model_details,
     )
 
 
@@ -540,15 +571,35 @@ def analyze(secret: str) -> dict:
 
     chosen = ml_result if ml_result.risk_score >= heuristic_result.risk_score else heuristic_result
     chosen.details = dict(chosen.details)
-    chosen.details.update(
-        {
-            "analysis_mode": "hybrid_conservative",
-            "heuristic_risk_score": heuristic_result.risk_score,
-            "ml_risk_score": ml_result.risk_score,
-            "ml_model_label": ml_result.details.get("model_label"),
-            "ml_predictability": ml_result.details.get("model_predictability"),
-            "ml_entropy_score": ml_result.details.get("entropy_score"),
-        }
-    )
+
+    merged_details = {
+        "analysis_mode": "hybrid_conservative",
+        "heuristic_risk_score": heuristic_result.risk_score,
+        "ml_risk_score": ml_result.risk_score,
+    }
+
+    # Only add ml_* copies when heuristic result won; otherwise those values
+    # are already present as direct model_* fields in the chosen details.
+    if chosen is heuristic_result:
+        merged_details.update(
+            {
+                "ml_model_label": ml_result.details.get("model_label"),
+                "ml_predictability": ml_result.details.get("model_predictability"),
+                "ml_entropy_score": ml_result.details.get("entropy_score"),
+            }
+        )
+        if EXPOSE_MODEL_RUNTIME_DETAILS:
+            merged_details.update(
+                {
+                    "ml_model_kind": ml_result.details.get("model_kind"),
+                    "ml_model_device": ml_result.details.get("model_device"),
+                    "ml_weights_file": ml_result.details.get("model_weights_file"),
+                    "ml_weights_path": ml_result.details.get("model_weights_path"),
+                    "ml_model_loaded": ml_result.details.get("model_loaded"),
+                    "ml_weights_found": ml_result.details.get("weights_found"),
+                }
+            )
+
+    chosen.details.update(merged_details)
 
     return chosen.to_dict()

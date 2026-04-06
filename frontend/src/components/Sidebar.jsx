@@ -26,7 +26,7 @@ export default function Sidebar() {
       <div className="sidebar__header">
         <div className="sidebar__logo">
           <span className="sidebar__logo-icon icon icon-lg">enhanced_encryption</span>
-          <span className="sidebar__logo-text">SecureVault</span>
+          <span className="sidebar__logo-text">Abhedya</span>
         </div>
       </div>
 

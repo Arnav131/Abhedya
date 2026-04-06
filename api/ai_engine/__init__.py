@@ -1,4 +1,4 @@
-# SecureVault AI Engine
+# Abhedya AI Engine
 # Local, GPU-accelerated threat detection and password analysis modules.
 
 from .honeypot_llm import (  # noqa: F401

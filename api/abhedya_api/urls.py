@@ -1,5 +1,5 @@
 """
-SecureVault API — Root URL Configuration
+Abhedya API — Root URL Configuration
 
 Routes:
   /api/auth/register/       — User registration

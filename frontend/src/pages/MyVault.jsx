@@ -20,6 +20,53 @@ const categoryIcons = {
   Other: 'key',
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function getPasswordStrength(secret) {
+  if (!secret) return 0
+
+  let score = Math.min(35, secret.length * 2.8)
+  if (/[A-Z]/.test(secret)) score += 15
+  if (/[a-z]/.test(secret)) score += 15
+  if (/\d/.test(secret)) score += 15
+  if (/[^A-Za-z0-9]/.test(secret)) score += 20
+
+  return clamp(Math.round(score), 0, 100)
+}
+
+function computeVaultHealth(items) {
+  if (!items.length) return 0
+
+  const total = items.length
+  const decrypted = items.filter(item => !item.decryptError)
+  const decryptedCoverage = Math.round((decrypted.length / total) * 100)
+
+  const avgStrength = decrypted.length
+    ? Math.round(
+      decrypted.reduce((sum, item) => sum + getPasswordStrength(item.password || ''), 0)
+      / decrypted.length
+    )
+    : 0
+
+  const freshCount = items.filter(item => {
+    const t = new Date(item.updated_at || item.created_at).getTime()
+    return !Number.isNaN(t) && Date.now() - t <= 30 * DAY_MS
+  }).length
+  const freshness = Math.round((freshCount / total) * 100)
+
+  const composite = Math.round(
+    decryptedCoverage * 0.4 +
+    avgStrength * 0.45 +
+    freshness * 0.15
+  )
+
+  return clamp(composite, 0, 100)
+}
+
 function formatRelativeTime(timestamp) {
   if (!timestamp) return 'just now'
 
@@ -170,9 +217,7 @@ export default function MyVault() {
     })
   }
 
-  const healthScore = vaultItems.length > 0
-    ? Math.min(100, 80 + vaultItems.filter(i => !i.decryptError).length * 4)
-    : 0
+  const healthScore = useMemo(() => computeVaultHealth(vaultItems), [vaultItems])
 
   return (
     <div className="app-layout">
@@ -287,9 +332,13 @@ export default function MyVault() {
             </div>
             <h4>Security Health</h4>
             <p className="text-muted" style={{ fontSize: '0.82rem' }}>
-              {vaultItems.length > 0
-                ? 'Your personal data is shielded by zero-knowledge encryption. Everything looks great.'
-                : 'Add your first credential to start protecting your data.'
+              {vaultItems.length === 0
+                ? 'Add your first credential to start protecting your data.'
+                : healthScore >= 85
+                  ? 'Your vault posture is strong. Encryption, freshness, and key quality look healthy.'
+                  : healthScore >= 70
+                    ? 'Your vault is protected, but some credentials should be strengthened.'
+                    : 'Your vault needs attention. Improve weak credentials and investigate locked entries.'
               }
             </p>
             <div className="progress-bar" style={{ marginTop: '12px' }}>

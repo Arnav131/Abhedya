@@ -1,7 +1,7 @@
 # [Cybersecurity / Blockchain - Project 2]
 
 ## 🚀 Project Title  
-SecureVault 
+Abhedya 
 
 ## 🧠 Problem Statement  
 Users reuse weak passwords.

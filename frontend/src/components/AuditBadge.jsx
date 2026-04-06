@@ -14,6 +14,40 @@ const riskLabels = {
   safe: 'Safe',
 }
 
+const hiddenDetailKeys = new Set([
+  'model_weights_path',
+  'ml_weights_path',
+  'model_device',
+  'ml_model_device',
+])
+
+const detailPriority = [
+  'length',
+  'entropy',
+  'char_classes',
+  'strength_score',
+  'model_label',
+  'model_predictability',
+  'entropy_score',
+  'analysis_mode',
+  'heuristic_risk_score',
+  'ml_risk_score',
+  'ml_model_label',
+  'ml_predictability',
+  'ml_entropy_score',
+  'engine',
+]
+
+function sortDetailsByPriority([a], [b]) {
+  const aIdx = detailPriority.indexOf(a)
+  const bIdx = detailPriority.indexOf(b)
+  const aRank = aIdx === -1 ? Number.MAX_SAFE_INTEGER : aIdx
+  const bRank = bIdx === -1 ? Number.MAX_SAFE_INTEGER : bIdx
+
+  if (aRank !== bRank) return aRank - bRank
+  return a.localeCompare(b)
+}
+
 export default function AuditBadge({ auditResult, loading }) {
   if (loading) {
     return (
@@ -32,6 +66,12 @@ export default function AuditBadge({ auditResult, loading }) {
   if (!auditResult) return null
 
   const { identified_type, risk_level, risk_score, recommendations, details } = auditResult
+  const detailEntries = details
+    ? Object.entries(details)
+      .filter(([key]) => !hiddenDetailKeys.has(key))
+      .sort(sortDetailsByPriority)
+      .slice(0, 12)
+    : []
 
   return (
     <div className={`audit-badge audit-badge--${risk_level}`}>
@@ -70,9 +110,9 @@ export default function AuditBadge({ auditResult, loading }) {
       )}
 
       {/* Details (collapsed) */}
-      {details && Object.keys(details).length > 0 && (
+      {detailEntries.length > 0 && (
         <div className="audit-badge__details">
-          {Object.entries(details).map(([key, val]) => (
+          {detailEntries.map(([key, val]) => (
             <span key={key} className="audit-badge__detail-chip">
               {key}: <strong>{String(val)}</strong>
             </span>

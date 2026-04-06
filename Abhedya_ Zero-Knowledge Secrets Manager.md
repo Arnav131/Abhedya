@@ -1,4 +1,4 @@
-# **Software Requirements Specification: SecureVault**
+# **Software Requirements Specification: Abhedya**
 
 **Version:** 3.0 (Hackathon Master Blueprint)
 
@@ -10,7 +10,7 @@
 
 ### **1.1 Purpose**
 
-SecureVault is an intelligent, zero-knowledge secrets manager designed for both standard users and developers. It securely stores credentials while utilizing on-device, GPU-accelerated AI to proactively defend against breaches and audit user behavior, all without exposing plaintext data to external APIs.
+Abhedya is an intelligent, zero-knowledge secrets manager designed for both standard users and developers. It securely stores credentials while utilizing on-device, GPU-accelerated AI to proactively defend against breaches and audit user behavior, all without exposing plaintext data to external APIs.
 
 ### **1.2 Scope**
 
@@ -35,7 +35,7 @@ This specification outlines the three phases of the 24-hour hackathon build:
 
 Plaintext
 
-securevault\_root/  
+abhedya\_root/  
 ├── README.md  
 ├── frontend/                  \# React UI & Client-Side Cryptography  
 │   ├── src/  
@@ -47,7 +47,7 @@ securevault\_root/
 │   └── package.json  
 └── api/                   \# Django Backend & AI Engines  
     ├── manage.py  
-    ├── securevault\_api/       \# Django core settings & routing  
+    ├── abhedya\_api/       \# Django core settings & routing  
     ├── vault/                 \# Main App (Models, Views)  
     │   ├── models.py          \# VaultEntry (Ciphertext \+ Risk Metadata)  
     │   ├── views.py           \# Core endpoints (POST /store, GET /retrieve)  
