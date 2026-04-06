@@ -233,6 +233,24 @@
   background: #2f2f2f;
   border: var(--ghost-border);
   padding: 12px;
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.vault__intel-metric:hover {
+  border-color: rgba(132, 150, 126, 0.45);
+  background: #363636;
+  transform: translateY(-2px);
+}
+
+.vault__intel-metric--active {
+  border-color: rgba(0, 255, 65, 0.45);
+  background: rgba(0, 255, 65, 0.08);
+  box-shadow: 0 0 0 1px rgba(0, 255, 65, 0.18) inset;
 }
 
 .vault__intel-metric strong {
@@ -262,6 +280,30 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-md);
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.vault__category-row--active {
+  opacity: 1;
+}
+
+.vault__category-row:not(.vault__category-row--active) {
+  opacity: 0.9;
+}
+
+.vault__category-row--active .vault__category-label {
+  color: var(--primary-container);
+}
+
+.vault__category-row--active .vault__category-track {
+  border-color: rgba(0, 255, 65, 0.35);
+}
+
+.vault__intel-metric:focus-visible,
+.vault__category-row:focus-visible {
+  outline: 2px solid rgba(0, 255, 65, 0.4);
+  outline-offset: 2px;
 }
 
 .vault__category-label {
@@ -395,6 +437,38 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-lg);
+}
+
+.vault__active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--space-md);
+}
+
+.vault__active-filter {
+  border: 1px solid rgba(132, 150, 126, 0.45);
+  background: rgba(132, 150, 126, 0.14);
+  color: var(--on-surface);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.vault__active-filter:hover {
+  border-color: rgba(0, 255, 65, 0.42);
+  background: rgba(0, 255, 65, 0.16);
+  transform: translateY(-1px);
 }
 
 /* Items grid */

@@ -29,6 +29,18 @@ const HONEYPOT_ALERT_POLL_MS = 20000;
 const DASHBOARD_READ_ALERTS_KEY = "sv_dashboard_read_honeypot_alert_ids";
 const MAX_DASHBOARD_READ_ALERTS = 250;
 
+const SNAPSHOT_FILTERS = {
+  DECRYPTED: "decrypted",
+  WEAK: "weak",
+  UPDATED_WEEK: "updated-week",
+};
+
+const SNAPSHOT_FILTER_LABELS = {
+  [SNAPSHOT_FILTERS.DECRYPTED]: "Decrypted Entries",
+  [SNAPSHOT_FILTERS.WEAK]: "Weak Credentials",
+  [SNAPSHOT_FILTERS.UPDATED_WEEK]: "Updated This Week",
+};
+
 function toEpoch(timestamp) {
   if (!timestamp) return 0;
   const value = new Date(timestamp).getTime();
@@ -132,6 +144,27 @@ function formatRelativeTime(timestamp) {
   return `${days}d ago`;
 }
 
+function matchesSnapshotFilter(item, selectedFilter) {
+  if (!selectedFilter) {
+    return true;
+  }
+
+  switch (selectedFilter) {
+    case SNAPSHOT_FILTERS.DECRYPTED:
+      return !item.decryptError;
+    case SNAPSHOT_FILTERS.WEAK:
+      return (
+        !item.decryptError && getPasswordStrength(item.password || "") < 60
+      );
+    case SNAPSHOT_FILTERS.UPDATED_WEEK: {
+      const time = toEpoch(item.updated_at || item.created_at);
+      return time > 0 && Date.now() - time <= 7 * DAY_MS;
+    }
+    default:
+      return true;
+  }
+}
+
 function activateOnKey(event, action) {
   if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
@@ -152,6 +185,8 @@ export default function MyVault() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [honeypotAlerts, setHoneypotAlerts] = useState([]);
+  const [selectedSnapshotFilter, setSelectedSnapshotFilter] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("");
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -261,17 +296,33 @@ export default function MyVault() {
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return vaultItems;
 
     return vaultItems.filter((item) => {
-      const haystack = [item.label, item.username, item.url, item.category]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+      if (query) {
+        const haystack = [item.label, item.username, item.url, item.category]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-      return haystack.includes(query);
+        if (!haystack.includes(query)) {
+          return false;
+        }
+      }
+
+      if (!matchesSnapshotFilter(item, selectedSnapshotFilter)) {
+        return false;
+      }
+
+      if (selectedCategoryFilter) {
+        const itemCategory = item.category || "Other";
+        if (itemCategory !== selectedCategoryFilter) {
+          return false;
+        }
+      }
+
+      return true;
     });
-  }, [searchQuery, vaultItems]);
+  }, [searchQuery, selectedSnapshotFilter, selectedCategoryFilter, vaultItems]);
 
   const notifications = useMemo(() => {
     const vaultNotifications = [...vaultItems]
@@ -441,6 +492,23 @@ export default function MyVault() {
   });
 
   const unreadBadgeValue = Math.min(Math.round(animatedUnreadCount), 9);
+  const hasSearchQuery = Boolean(searchQuery.trim());
+  const hasSelectionFilters = Boolean(
+    selectedSnapshotFilter || selectedCategoryFilter,
+  );
+  const hasActiveFilters = hasSearchQuery || hasSelectionFilters;
+
+  const toggleSnapshotFilter = (filterName) => {
+    setSelectedSnapshotFilter((prev) =>
+      prev === filterName ? "" : filterName,
+    );
+  };
+
+  const toggleCategoryFilter = (categoryName) => {
+    setSelectedCategoryFilter((prev) =>
+      prev === categoryName ? "" : categoryName,
+    );
+  };
 
   return (
     <div className="app-layout">
@@ -688,7 +756,20 @@ export default function MyVault() {
             </div>
 
             <div className="vault__intel-metrics">
-              <article className="vault__intel-metric">
+              <article
+                className={`vault__intel-metric ${selectedSnapshotFilter === SNAPSHOT_FILTERS.DECRYPTED ? "vault__intel-metric--active" : ""}`}
+                onClick={() => toggleSnapshotFilter(SNAPSHOT_FILTERS.DECRYPTED)}
+                onKeyDown={(event) =>
+                  activateOnKey(event, () =>
+                    toggleSnapshotFilter(SNAPSHOT_FILTERS.DECRYPTED),
+                  )
+                }
+                role="button"
+                tabIndex={0}
+                aria-pressed={
+                  selectedSnapshotFilter === SNAPSHOT_FILTERS.DECRYPTED
+                }
+              >
                 <strong>
                   <AnimatedNumber
                     target={vaultInsights.decryptedCount}
@@ -699,18 +780,18 @@ export default function MyVault() {
                 <span className="text-muted">Decrypted Entries</span>
               </article>
 
-              <article className="vault__intel-metric">
-                <strong>
-                  <AnimatedNumber
-                    target={vaultInsights.lockedCount}
-                    duration={900}
-                    enabled={!loading}
-                  />
-                </strong>
-                <span className="text-muted">Locked Entries</span>
-              </article>
-
-              <article className="vault__intel-metric">
+              <article
+                className={`vault__intel-metric ${selectedSnapshotFilter === SNAPSHOT_FILTERS.WEAK ? "vault__intel-metric--active" : ""}`}
+                onClick={() => toggleSnapshotFilter(SNAPSHOT_FILTERS.WEAK)}
+                onKeyDown={(event) =>
+                  activateOnKey(event, () =>
+                    toggleSnapshotFilter(SNAPSHOT_FILTERS.WEAK),
+                  )
+                }
+                role="button"
+                tabIndex={0}
+                aria-pressed={selectedSnapshotFilter === SNAPSHOT_FILTERS.WEAK}
+              >
                 <strong>
                   <AnimatedNumber
                     target={vaultInsights.weakCount}
@@ -721,7 +802,22 @@ export default function MyVault() {
                 <span className="text-muted">Weak Credentials</span>
               </article>
 
-              <article className="vault__intel-metric">
+              <article
+                className={`vault__intel-metric ${selectedSnapshotFilter === SNAPSHOT_FILTERS.UPDATED_WEEK ? "vault__intel-metric--active" : ""}`}
+                onClick={() =>
+                  toggleSnapshotFilter(SNAPSHOT_FILTERS.UPDATED_WEEK)
+                }
+                onKeyDown={(event) =>
+                  activateOnKey(event, () =>
+                    toggleSnapshotFilter(SNAPSHOT_FILTERS.UPDATED_WEEK),
+                  )
+                }
+                role="button"
+                tabIndex={0}
+                aria-pressed={
+                  selectedSnapshotFilter === SNAPSHOT_FILTERS.UPDATED_WEEK
+                }
+              >
                 <strong>
                   <AnimatedNumber
                     target={vaultInsights.updatedInLastWeek}
@@ -749,7 +845,19 @@ export default function MyVault() {
             ) : (
               <div className="vault__category-list">
                 {vaultInsights.categoryPulse.map((entry) => (
-                  <div key={entry.name} className="vault__category-row">
+                  <div
+                    key={entry.name}
+                    className={`vault__category-row ${selectedCategoryFilter === entry.name ? "vault__category-row--active" : ""}`}
+                    onClick={() => toggleCategoryFilter(entry.name)}
+                    onKeyDown={(event) =>
+                      activateOnKey(event, () =>
+                        toggleCategoryFilter(entry.name),
+                      )
+                    }
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedCategoryFilter === entry.name}
+                  >
                     <div className="vault__category-label">
                       <span className="icon icon-sm">
                         {categoryIcons[entry.name] || "key"}
@@ -800,11 +908,37 @@ export default function MyVault() {
           <span className="badge badge--green">
             {loading
               ? "..."
-              : searchQuery.trim()
+              : hasActiveFilters
                 ? `${Math.round(animatedFilteredCount)}/${Math.round(animatedTotalCount)} Shown`
                 : `${Math.round(animatedTotalCount)} Protected`}
           </span>
         </div>
+
+        {hasSelectionFilters && (
+          <div className="vault__active-filters">
+            {selectedSnapshotFilter && (
+              <button
+                type="button"
+                className="vault__active-filter"
+                onClick={() => toggleSnapshotFilter(selectedSnapshotFilter)}
+              >
+                Type: {SNAPSHOT_FILTER_LABELS[selectedSnapshotFilter]}
+                <span className="icon icon-sm">close</span>
+              </button>
+            )}
+
+            {selectedCategoryFilter && (
+              <button
+                type="button"
+                className="vault__active-filter"
+                onClick={() => toggleCategoryFilter(selectedCategoryFilter)}
+              >
+                Category: {selectedCategoryFilter}
+                <span className="icon icon-sm">close</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <div
@@ -846,7 +980,9 @@ export default function MyVault() {
           >
             <span className="icon icon-lg">search_off</span>
             <p style={{ marginTop: 12 }}>
-              No credentials matched your search. Try a different keyword.
+              {hasSelectionFilters
+                ? "No credentials matched the selected filters. Click an active filter again to clear it."
+                : "No credentials matched your search. Try a different keyword."}
             </p>
           </div>
         ) : (
