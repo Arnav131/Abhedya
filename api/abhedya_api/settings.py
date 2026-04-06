@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ──────────────────────────────────────────────
 SECRET_KEY = config("SECRET_KEY", default="django-insecure-dev-key-change-me-in-production")
 DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
+ALLOWED_HOSTS = ['abhedya-ikij.onrender.com','127.0.0.1','localhost']
 
 # ──────────────────────────────────────────────
 # Application definition
@@ -157,6 +157,10 @@ CORS_ALLOWED_ORIGINS = config(
     cast=Csv(),
 )
 CORS_ALLOW_CREDENTIALS = True
+
+
+CSRF_TRUSTED_ORIGINS=['https://abhedya-ikij.onrender.com']
+
 
 # ──────────────────────────────────────────────
 # Default primary key field type
