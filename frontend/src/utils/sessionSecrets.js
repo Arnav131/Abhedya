@@ -1,13 +1,13 @@
-let masterKey = ''
+let masterKey = "";
 
 export function setMasterKey(value) {
-  masterKey = value || ''
+  masterKey = value || "";
 }
 
 export function getMasterKey() {
-  return masterKey
+  return masterKey;
 }
 
 export function clearMasterKey() {
-  masterKey = ''
+  masterKey = "";
 }

@@ -197,3 +197,21 @@ HONEYPOT = {
     "DECOY_PASSWORDS_COUNT": config("HONEYPOT_DECOY_PASSWORDS", default=4, cast=int),
 }
 
+# ──────────────────────────────────────────────
+# Honeypot Breach Alerts (Phase 4)
+# ──────────────────────────────────────────────
+HONEYPOT_ALERT = {
+    # Master switch for SMTP breach alerts
+    "ENABLED": config("HONEYPOT_ALERT_ENABLED", default=True, cast=bool),
+    # SMTP transport
+    "SMTP_HOST": config("SMTP_HOST", default="smtp.gmail.com"),
+    "SMTP_PORT": config("SMTP_PORT", default=587, cast=int),
+    "SMTP_EMAIL": config("SMTP_EMAIL", default=""),
+    "SMTP_PASSWORD": config("SMTP_PASSWORD", default=""),
+    "SMTP_FROM_NAME": config("SMTP_FROM_NAME", default="Abhedya Security"),
+    "SMTP_USE_TLS": config("SMTP_USE_TLS", default=True, cast=bool),
+    "SMTP_TIMEOUT": config("SMTP_TIMEOUT", default=30, cast=int),
+    # Max alerts per user per hour (used by alert API module defaults)
+    "ALERT_RATE_LIMIT": config("ALERT_RATE_LIMIT", default=5, cast=int),
+}
+

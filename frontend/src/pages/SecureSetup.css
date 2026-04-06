@@ -11,7 +11,8 @@
 }
 
 @keyframes orbDriftGreen {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
@@ -20,7 +21,8 @@
 }
 
 @keyframes orbDriftBlue {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
@@ -90,7 +92,7 @@
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--primary-container);
-  background: rgba(0,255,65,0.08);
+  background: rgba(0, 255, 65, 0.08);
   padding: 6px 14px;
   width: fit-content;
   animation: pulse 2.8s ease-in-out infinite;
@@ -132,20 +134,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,255,65,0.08);
+  background: rgba(0, 255, 65, 0.08);
   color: var(--primary-container);
   flex-shrink: 0;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .setup__feature-icon--blue {
-  background: rgba(0,162,253,0.08);
+  background: rgba(0, 162, 253, 0.08);
   color: var(--secondary-container);
 }
 
 .setup__feature:hover .setup__feature-icon {
   transform: translateY(-2px);
-  box-shadow: 0 0 16px rgba(0,255,65,0.15);
+  box-shadow: 0 0 16px rgba(0, 255, 65, 0.15);
 }
 
 .setup__feature h4 {
@@ -171,13 +175,18 @@
 }
 
 .setup__card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -40%;
   width: 40%;
   bottom: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(0,255,65,0.18) 60%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 255, 65, 0.18) 60%,
+    transparent 100%
+  );
   animation: scanLine 6s linear infinite;
   opacity: 0.4;
   pointer-events: none;
@@ -242,7 +251,9 @@
   color: var(--on-surface-variant);
   cursor: pointer;
   padding: 4px;
-  transition: color var(--transition-fast), transform var(--transition-fast);
+  transition:
+    color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .setup__toggle-vis:hover {
@@ -261,10 +272,18 @@
   width: fit-content;
 }
 
-.strength-meter__bar.active.weak    { background: var(--error); }
-.strength-meter__bar.active.moderate{ background: var(--secondary-container); }
-.strength-meter__bar.active.strong  { background: var(--primary-container); }
-.strength-meter__bar.active.max     { background: var(--primary-fixed); }
+.strength-meter__bar.active.weak {
+  background: var(--error);
+}
+.strength-meter__bar.active.moderate {
+  background: var(--secondary-container);
+}
+.strength-meter__bar.active.strong {
+  background: var(--primary-container);
+}
+.strength-meter__bar.active.max {
+  background: var(--primary-fixed);
+}
 
 /* Tip */
 .setup__tip {
@@ -276,7 +295,9 @@
   font-size: 0.82rem;
   color: var(--on-surface-variant);
   line-height: 1.5;
-  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .setup__tip:hover {

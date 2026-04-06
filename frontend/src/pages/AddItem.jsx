@@ -1,102 +1,110 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { encryptPayload, storeVaultEntry } from '../utils/vaultCrypto'
-import { auditSecret } from '../utils/auditApi'
-import { getMasterKey } from '../utils/sessionSecrets'
-import AuditBadge from '../components/AuditBadge'
-import Sidebar from '../components/Sidebar'
-import StatusBar from '../components/StatusBar'
-import './AddItem.css'
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { encryptPayload, storeVaultEntry } from "../utils/vaultCrypto";
+import { auditSecret } from "../utils/auditApi";
+import { getMasterKey } from "../utils/sessionSecrets";
+import AuditBadge from "../components/AuditBadge";
+import Sidebar from "../components/Sidebar";
+import StatusBar from "../components/StatusBar";
+import "./AddItem.css";
 
-const CATEGORIES = ['Email', 'Cloud', 'Finance', 'Media', 'Social', 'Dev', 'Other']
+const CATEGORIES = [
+  "Email",
+  "Cloud",
+  "Finance",
+  "Media",
+  "Social",
+  "Dev",
+  "Other",
+];
 
 export default function AddItem() {
-  const navigate = useNavigate()
-  const masterPassword = getMasterKey()
-  const debounceRef = useRef(null)
+  const navigate = useNavigate();
+  const masterPassword = getMasterKey();
+  const debounceRef = useRef(null);
 
   // Form state
-  const [label, setLabel] = useState('')
-  const [username, setUsername] = useState('')
-  const [secret, setSecret] = useState('')
-  const [url, setUrl] = useState('')
-  const [category, setCategory] = useState('Other')
-  const [notes, setNotes] = useState('')
+  const [label, setLabel] = useState("");
+  const [username, setUsername] = useState("");
+  const [secret, setSecret] = useState("");
+  const [url, setUrl] = useState("");
+  const [category, setCategory] = useState("Other");
+  const [notes, setNotes] = useState("");
 
   // Audit state
-  const [auditResult, setAuditResult] = useState(null)
-  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditResult, setAuditResult] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   // Submit state
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   // Redirect if not logged in
   useEffect(() => {
-    if (!sessionStorage.getItem('sv_access_token')) {
-      navigate('/')
+    if (!sessionStorage.getItem("sv_access_token")) {
+      navigate("/");
     }
-  }, [])
+  }, []);
 
   // ═══ Audit Logic ═══
 
   const runAudit = useCallback(async (value) => {
     if (!value || value.trim().length < 2) {
-      setAuditResult(null)
-      return
+      setAuditResult(null);
+      return;
     }
-    setAuditLoading(true)
+    setAuditLoading(true);
     try {
-      const result = await auditSecret(value)
-      setAuditResult(result)
+      const result = await auditSecret(value);
+      setAuditResult(result);
     } catch {
-      setAuditResult(null)
+      setAuditResult(null);
     } finally {
-      setAuditLoading(false)
+      setAuditLoading(false);
     }
-  }, [])
+  }, []);
 
   // Auto-audit: debounced on every change (800ms)
   const handleSecretChange = (e) => {
-    const val = e.target.value
-    setSecret(val)
+    const val = e.target.value;
+    setSecret(val);
 
     // Clear previous debounce
-    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
     // Debounce auto-audit
     debounceRef.current = setTimeout(() => {
-      runAudit(val)
-    }, 800)
-  }
+      runAudit(val);
+    }, 800);
+  };
 
   // Auto-audit on paste (immediate)
   const handlePaste = (e) => {
     // The onChange will fire too, so we do an immediate audit
     setTimeout(() => {
-      const val = e.target.value
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-      runAudit(val)
-    }, 50)
-  }
+      const val = e.target.value;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      runAudit(val);
+    }, 50);
+  };
 
   // Manual audit button
   const handleManualAudit = () => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    runAudit(secret)
-  }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    runAudit(secret);
+  };
 
   // ═══ Submit Logic ═══
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!label.trim() || !secret.trim()) {
-      setError('Label and Secret are required.')
-      return
+      setError("Label and Secret are required.");
+      return;
     }
 
-    setSaving(true)
-    setError('')
+    setSaving(true);
+    setError("");
 
     try {
       const payload = {
@@ -105,25 +113,31 @@ export default function AddItem() {
         url: url.trim(),
         category,
         notes: notes.trim(),
-      }
+      };
 
-      const { ciphertext, iv, salt } = await encryptPayload(payload, masterPassword)
-      await storeVaultEntry(label.trim(), ciphertext, iv, salt)
+      const { ciphertext, iv, salt } = await encryptPayload(
+        payload,
+        masterPassword,
+      );
+      await storeVaultEntry(label.trim(), ciphertext, iv, salt);
 
-      navigate('/vault')
+      navigate("/vault");
     } catch (err) {
-      setError('Failed to store: ' + err.message)
+      setError("Failed to store: " + err.message);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   return (
     <div className="app-layout">
       <Sidebar />
       <main className="main-content add-page animate-in">
         {/* Back nav */}
-        <button className="add__back btn-ghost" onClick={() => navigate('/vault')}>
+        <button
+          className="add__back btn-ghost"
+          onClick={() => navigate("/vault")}
+        >
           <span className="icon icon-sm">arrow_back</span>
           Back to Vault
         </button>
@@ -152,7 +166,7 @@ export default function AddItem() {
                 className="input-field"
                 placeholder="e.g. Gmail, AWS Prod, GitHub..."
                 value={label}
-                onChange={e => setLabel(e.target.value)}
+                onChange={(e) => setLabel(e.target.value)}
               />
             </div>
 
@@ -165,7 +179,7 @@ export default function AddItem() {
                 className="input-field"
                 placeholder="user@example.com"
                 value={username}
-                onChange={e => setUsername(e.target.value)}
+                onChange={(e) => setUsername(e.target.value)}
               />
             </div>
 
@@ -196,7 +210,7 @@ export default function AddItem() {
                   title="Run manual audit"
                 >
                   <span className="icon icon-sm">
-                    {auditLoading ? 'sync' : 'policy'}
+                    {auditLoading ? "sync" : "policy"}
                   </span>
                   Audit
                 </button>
@@ -215,7 +229,7 @@ export default function AddItem() {
                 className="input-field"
                 placeholder="https://..."
                 value={url}
-                onChange={e => setUrl(e.target.value)}
+                onChange={(e) => setUrl(e.target.value)}
               />
             </div>
 
@@ -223,11 +237,11 @@ export default function AddItem() {
             <div className="input-group">
               <label>Category</label>
               <div className="add__categories">
-                {CATEGORIES.map(cat => (
+                {CATEGORIES.map((cat) => (
                   <button
                     key={cat}
                     type="button"
-                    className={`add__cat-btn ${category === cat ? 'add__cat-btn--active' : ''}`}
+                    className={`add__cat-btn ${category === cat ? "add__cat-btn--active" : ""}`}
                     onClick={() => setCategory(cat)}
                   >
                     {cat}
@@ -244,7 +258,7 @@ export default function AddItem() {
                 className="input-field"
                 placeholder="Optional notes..."
                 value={notes}
-                onChange={e => setNotes(e.target.value)}
+                onChange={(e) => setNotes(e.target.value)}
                 rows={2}
               />
             </div>
@@ -257,7 +271,12 @@ export default function AddItem() {
             >
               {saving ? (
                 <>
-                  <span className="icon icon-sm" style={{ animation: 'spin 1s linear infinite' }}>sync</span>
+                  <span
+                    className="icon icon-sm"
+                    style={{ animation: "spin 1s linear infinite" }}
+                  >
+                    sync
+                  </span>
                   Encrypting & Storing...
                 </>
               ) : (
@@ -281,21 +300,28 @@ export default function AddItem() {
                   <span className="add__step-num">01</span>
                   <div>
                     <strong>Paste & Audit</strong>
-                    <p className="text-muted">Secret is analyzed ephemerally by Django — never saved.</p>
+                    <p className="text-muted">
+                      Secret is analyzed ephemerally by Django — never saved.
+                    </p>
                   </div>
                 </div>
                 <div className="add__step">
                   <span className="add__step-num">02</span>
                   <div>
                     <strong>Client-Side Encryption</strong>
-                    <p className="text-muted">AES-256-GCM with your master password via PBKDF2.</p>
+                    <p className="text-muted">
+                      AES-256-GCM with your master password via PBKDF2.
+                    </p>
                   </div>
                 </div>
                 <div className="add__step">
                   <span className="add__step-num">03</span>
                   <div>
                     <strong>Dumb Storage</strong>
-                    <p className="text-muted">Only ciphertext hits the server. Plaintext never leaves your browser.</p>
+                    <p className="text-muted">
+                      Only ciphertext hits the server. Plaintext never leaves
+                      your browser.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -306,5 +332,5 @@ export default function AddItem() {
         <StatusBar />
       </main>
     </div>
-  )
+  );
 }

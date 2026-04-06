@@ -10,6 +10,7 @@ Routes:
   /api/honeypot/status/     — Honeypot status for authenticated user
   /api/honeypot/llm-status/ — Local LLM connectivity status
   /api/honeypot/regenerate/ — Re-generate honeypots
+  /api/honeypot/trigger/    — Trigger honeypot alert + SMTP email
   /admin/                   — Django admin
 """
 
@@ -25,6 +26,7 @@ from vault.honeypot_views import (
   HoneypotStatusView,
   HoneypotLLMStatusView,
   HoneypotRegenerateView,
+  HoneypotTriggerView,
 )
 
 urlpatterns = [
@@ -46,5 +48,6 @@ urlpatterns = [
     path("api/honeypot/status/", HoneypotStatusView.as_view(), name="honeypot-status"),
     path("api/honeypot/llm-status/", HoneypotLLMStatusView.as_view(), name="honeypot-llm-status"),
     path("api/honeypot/regenerate/", HoneypotRegenerateView.as_view(), name="honeypot-regenerate"),
+    path("api/honeypot/trigger/", HoneypotTriggerView.as_view(), name="honeypot-trigger"),
 ]
 

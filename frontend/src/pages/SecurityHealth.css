@@ -3,7 +3,8 @@
 }
 
 @keyframes signalPulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scaleY(0.92);
     opacity: 0.5;
   }
@@ -14,8 +15,13 @@
 }
 
 @keyframes gaugeFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 .health__header {
@@ -54,7 +60,7 @@
 
 .health__gauge-arc {
   transition: stroke-dashoffset 1.5s ease;
-  filter: drop-shadow(0 0 10px rgba(0,255,65,0.28));
+  filter: drop-shadow(0 0 10px rgba(0, 255, 65, 0.28));
 }
 
 .health__gauge-center {
@@ -171,16 +177,56 @@
   opacity: 0.8;
 }
 
-.health__signal-bar:nth-child(1)  { animation: fadeIn 0.4s ease both, signalPulse 1.8s ease-in-out 0ms infinite; }
-.health__signal-bar:nth-child(2)  { animation: fadeIn 0.4s ease both, signalPulse 1.8s ease-in-out 120ms infinite; }
-.health__signal-bar:nth-child(3)  { animation: fadeIn 0.4s ease both, signalPulse 1.8s ease-in-out 240ms infinite; }
-.health__signal-bar:nth-child(4)  { animation: fadeIn 0.4s ease both, signalPulse 1.8s ease-in-out 360ms infinite; }
-.health__signal-bar:nth-child(5)  { animation: fadeIn 0.4s ease both, signalPulse 1.8s ease-in-out 480ms infinite; }
-.health__signal-bar:nth-child(6)  { animation: fadeIn 0.4s ease both, signalPulse 1.8s ease-in-out 600ms infinite; }
-.health__signal-bar:nth-child(7)  { animation: fadeIn 0.4s ease both, signalPulse 1.8s ease-in-out 720ms infinite; }
-.health__signal-bar:nth-child(8)  { animation: fadeIn 0.4s ease both, signalPulse 1.8s ease-in-out 840ms infinite; }
-.health__signal-bar:nth-child(9)  { animation: fadeIn 0.4s ease both, signalPulse 1.8s ease-in-out 960ms infinite; }
-.health__signal-bar:nth-child(10) { animation: fadeIn 0.4s ease both, signalPulse 1.8s ease-in-out 1080ms infinite; }
+.health__signal-bar:nth-child(1) {
+  animation:
+    fadeIn 0.4s ease both,
+    signalPulse 1.8s ease-in-out 0ms infinite;
+}
+.health__signal-bar:nth-child(2) {
+  animation:
+    fadeIn 0.4s ease both,
+    signalPulse 1.8s ease-in-out 120ms infinite;
+}
+.health__signal-bar:nth-child(3) {
+  animation:
+    fadeIn 0.4s ease both,
+    signalPulse 1.8s ease-in-out 240ms infinite;
+}
+.health__signal-bar:nth-child(4) {
+  animation:
+    fadeIn 0.4s ease both,
+    signalPulse 1.8s ease-in-out 360ms infinite;
+}
+.health__signal-bar:nth-child(5) {
+  animation:
+    fadeIn 0.4s ease both,
+    signalPulse 1.8s ease-in-out 480ms infinite;
+}
+.health__signal-bar:nth-child(6) {
+  animation:
+    fadeIn 0.4s ease both,
+    signalPulse 1.8s ease-in-out 600ms infinite;
+}
+.health__signal-bar:nth-child(7) {
+  animation:
+    fadeIn 0.4s ease both,
+    signalPulse 1.8s ease-in-out 720ms infinite;
+}
+.health__signal-bar:nth-child(8) {
+  animation:
+    fadeIn 0.4s ease both,
+    signalPulse 1.8s ease-in-out 840ms infinite;
+}
+.health__signal-bar:nth-child(9) {
+  animation:
+    fadeIn 0.4s ease both,
+    signalPulse 1.8s ease-in-out 960ms infinite;
+}
+.health__signal-bar:nth-child(10) {
+  animation:
+    fadeIn 0.4s ease both,
+    signalPulse 1.8s ease-in-out 1080ms infinite;
+}
 
 .health__connection-stats {
   display: flex;
@@ -234,7 +280,7 @@
 
 .health__event:hover {
   background: var(--surface-container-high);
-  border-color: rgba(59,75,55,0.3);
+  border-color: rgba(59, 75, 55, 0.3);
   transform: translateY(-1px);
 }
 
@@ -248,17 +294,17 @@
 }
 
 .health__event-icon--warning {
-  background: rgba(255,180,171,0.10);
+  background: rgba(255, 180, 171, 0.1);
   color: var(--error);
 }
 
 .health__event-icon--success {
-  background: rgba(0,255,65,0.08);
+  background: rgba(0, 255, 65, 0.08);
   color: var(--primary-container);
 }
 
 .health__event-icon--info {
-  background: rgba(0,162,253,0.08);
+  background: rgba(0, 162, 253, 0.08);
   color: var(--secondary-container);
 }
 
@@ -291,10 +337,15 @@
 }
 
 .health__audit-cta::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 20%, rgba(0,162,253,0.14) 50%, transparent 80%);
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(0, 162, 253, 0.14) 50%,
+    transparent 80%
+  );
   transform: translateX(-130%);
   pointer-events: none;
 }

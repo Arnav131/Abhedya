@@ -3,13 +3,22 @@
 }
 
 @keyframes vaultBadgePop {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
 }
 
 @keyframes vaultSweep {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(130%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
 }
 
 .vault__header {
@@ -140,7 +149,7 @@
   font-size: 2.5rem;
   font-weight: 700;
   line-height: 1;
-  text-shadow: 0 0 14px rgba(0,255,65,0.25);
+  text-shadow: 0 0 14px rgba(0, 255, 65, 0.25);
 }
 
 .vault__add-card {
@@ -160,14 +169,19 @@
 
 .vault__add-card:hover {
   border-color: var(--primary-container);
-  background: rgba(0,255,65,0.03);
+  background: rgba(0, 255, 65, 0.03);
 }
 
 .vault__add-card::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 20%, rgba(0,255,65,0.16) 50%, transparent 80%);
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(0, 255, 65, 0.16) 50%,
+    transparent 80%
+  );
   transform: translateX(-130%);
   pointer-events: none;
 }
@@ -182,15 +196,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,255,65,0.08);
+  background: rgba(0, 255, 65, 0.08);
   color: var(--primary-container);
   margin-bottom: var(--space-sm);
-  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base);
 }
 
 .vault__add-card:hover .vault__add-icon {
   transform: rotate(8deg) scale(1.05);
-  box-shadow: 0 0 18px rgba(0,255,65,0.2);
+  box-shadow: 0 0 18px rgba(0, 255, 65, 0.2);
 }
 
 /* Section header */
@@ -218,7 +234,7 @@
 
 .vault__item:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
 }
 
 .vault__item-header {
@@ -283,13 +299,18 @@
 }
 
 .vault__encrypted-banner::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(0,255,65,0.6) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 255, 65, 0.6) 50%,
+    transparent 100%
+  );
   animation: scanLine 5s linear infinite;
 }
 

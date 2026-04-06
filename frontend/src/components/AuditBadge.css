@@ -29,20 +29,20 @@
 
 .audit-badge--warning {
   background: rgba(255, 180, 0, 0.06);
-  border-color: rgba(255, 180, 0, 0.30);
-  box-shadow: 0 0 12px rgba(255, 180, 0, 0.10);
+  border-color: rgba(255, 180, 0, 0.3);
+  box-shadow: 0 0 12px rgba(255, 180, 0, 0.1);
 }
 
 .audit-badge--info {
   background: rgba(0, 162, 253, 0.06);
   border-color: rgba(0, 162, 253, 0.25);
-  box-shadow: 0 0 12px rgba(0, 162, 253, 0.10);
+  box-shadow: 0 0 12px rgba(0, 162, 253, 0.1);
 }
 
 .audit-badge--safe {
   background: rgba(0, 255, 65, 0.06);
   border-color: rgba(0, 255, 65, 0.25);
-  box-shadow: 0 0 12px rgba(0, 255, 65, 0.10);
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.1);
 }
 
 .audit-badge--loading {
@@ -62,10 +62,18 @@
   font-size: 22px;
 }
 
-.audit-badge__icon--critical { color: #ff4444; }
-.audit-badge__icon--warning  { color: #ffb400; }
-.audit-badge__icon--info     { color: var(--secondary-container); }
-.audit-badge__icon--safe     { color: var(--primary-container); }
+.audit-badge__icon--critical {
+  color: #ff4444;
+}
+.audit-badge__icon--warning {
+  color: #ffb400;
+}
+.audit-badge__icon--info {
+  color: var(--secondary-container);
+}
+.audit-badge__icon--safe {
+  color: var(--primary-container);
+}
 
 .audit-badge__title-group {
   display: flex;
@@ -88,10 +96,18 @@
   text-align: right;
 }
 
-.audit-badge--critical .audit-badge__score { color: #ff4444; }
-.audit-badge--warning .audit-badge__score  { color: #ffb400; }
-.audit-badge--info .audit-badge__score     { color: var(--secondary-container); }
-.audit-badge--safe .audit-badge__score     { color: var(--primary-container); }
+.audit-badge--critical .audit-badge__score {
+  color: #ff4444;
+}
+.audit-badge--warning .audit-badge__score {
+  color: #ffb400;
+}
+.audit-badge--info .audit-badge__score {
+  color: var(--secondary-container);
+}
+.audit-badge--safe .audit-badge__score {
+  color: var(--primary-container);
+}
 
 /* Risk bar */
 .audit-badge__bar-track {
@@ -110,18 +126,31 @@
 }
 
 .audit-badge__bar-fill::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 25%, rgba(255,255,255,0.35) 50%, transparent 75%);
+  background: linear-gradient(
+    120deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 75%
+  );
   animation: scanLine 2.4s linear infinite;
   opacity: 0.45;
 }
 
-.audit-badge__bar-fill--critical { background: #ff4444; }
-.audit-badge__bar-fill--warning  { background: #ffb400; }
-.audit-badge__bar-fill--info     { background: var(--secondary-container); }
-.audit-badge__bar-fill--safe     { background: var(--primary-container); }
+.audit-badge__bar-fill--critical {
+  background: #ff4444;
+}
+.audit-badge__bar-fill--warning {
+  background: #ffb400;
+}
+.audit-badge__bar-fill--info {
+  background: var(--secondary-container);
+}
+.audit-badge__bar-fill--safe {
+  background: var(--primary-container);
+}
 
 .audit-badge__bar-fill--loading {
   width: 40% !important;
@@ -147,12 +176,24 @@
   animation: fadeIn 420ms var(--motion-emphasis) both;
 }
 
-.audit-badge__recs li:nth-child(1) { animation-delay: 30ms; }
-.audit-badge__recs li:nth-child(2) { animation-delay: 80ms; }
-.audit-badge__recs li:nth-child(3) { animation-delay: 120ms; }
-.audit-badge__recs li:nth-child(4) { animation-delay: 170ms; }
-.audit-badge__recs li:nth-child(5) { animation-delay: 210ms; }
-.audit-badge__recs li:nth-child(6) { animation-delay: 250ms; }
+.audit-badge__recs li:nth-child(1) {
+  animation-delay: 30ms;
+}
+.audit-badge__recs li:nth-child(2) {
+  animation-delay: 80ms;
+}
+.audit-badge__recs li:nth-child(3) {
+  animation-delay: 120ms;
+}
+.audit-badge__recs li:nth-child(4) {
+  animation-delay: 170ms;
+}
+.audit-badge__recs li:nth-child(5) {
+  animation-delay: 210ms;
+}
+.audit-badge__recs li:nth-child(6) {
+  animation-delay: 250ms;
+}
 
 .audit-badge__recs li:hover {
   color: var(--on-surface);
@@ -179,7 +220,10 @@
   font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--on-surface-variant);
-  transition: border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .audit-badge__detail-chip:hover {
@@ -194,23 +238,37 @@
 
 /* Badge variant for warning / yellow */
 .badge--yellow {
-  background: rgba(255, 180, 0, 0.10);
+  background: rgba(255, 180, 0, 0.1);
   color: #ffb400;
   border: 1px solid rgba(255, 180, 0, 0.25);
 }
 
 /* Animations */
 @keyframes auditFlash {
-  0%, 100% { border-color: rgba(255, 60, 60, 0.35); }
-  50%      { border-color: rgba(255, 60, 60, 0.75); box-shadow: 0 0 20px rgba(255, 60, 60, 0.15); }
+  0%,
+  100% {
+    border-color: rgba(255, 60, 60, 0.35);
+  }
+  50% {
+    border-color: rgba(255, 60, 60, 0.75);
+    box-shadow: 0 0 20px rgba(255, 60, 60, 0.15);
+  }
 }
 
 @keyframes loadingSlide {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(350%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

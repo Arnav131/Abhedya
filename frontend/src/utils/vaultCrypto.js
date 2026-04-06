@@ -9,31 +9,31 @@
  *   Plaintext JSON → AES-GCM encrypt → { ciphertext, iv, salt }
  */
 
-import { API_BASE } from './config'
+import { API_BASE } from "./config";
 
-const enc = new TextEncoder()
-const dec = new TextDecoder()
+const enc = new TextEncoder();
+const dec = new TextDecoder();
 
 // ════════════════════════════════════════════
 // Encoding helpers
 // ════════════════════════════════════════════
 
 function buf2Base64(buffer) {
-  let binary = ''
-  const bytes = new Uint8Array(buffer)
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
   for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i])
+    binary += String.fromCharCode(bytes[i]);
   }
-  return btoa(binary)
+  return btoa(binary);
 }
 
 function base64ToBuf(b64) {
-  const binary = atob(b64)
-  const bytes = new Uint8Array(binary.length)
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
+    bytes[i] = binary.charCodeAt(i);
   }
-  return bytes
+  return bytes;
 }
 
 // ════════════════════════════════════════════
@@ -46,25 +46,25 @@ function base64ToBuf(b64) {
  */
 async function deriveKey(password, salt) {
   const baseKey = await crypto.subtle.importKey(
-    'raw',
+    "raw",
     enc.encode(password),
-    { name: 'PBKDF2' },
+    { name: "PBKDF2" },
     false,
-    ['deriveKey']
-  )
+    ["deriveKey"],
+  );
 
   return crypto.subtle.deriveKey(
     {
-      name: 'PBKDF2',
+      name: "PBKDF2",
       salt,
       iterations: 100000,
-      hash: 'SHA-256',
+      hash: "SHA-256",
     },
     baseKey,
-    { name: 'AES-GCM', length: 256 },
+    { name: "AES-GCM", length: 256 },
     true,
-    ['encrypt', 'decrypt']
-  )
+    ["encrypt", "decrypt"],
+  );
 }
 
 // ════════════════════════════════════════════
@@ -76,41 +76,46 @@ async function deriveKey(password, salt) {
  * Returns { ciphertext, iv, salt } as Base64 strings.
  */
 export async function encryptPayload(plaintextObj, masterPassword) {
-  const salt = crypto.getRandomValues(new Uint8Array(16))
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-  const key = await deriveKey(masterPassword, salt)
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(masterPassword, salt);
 
   const ciphertextBuf = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    { name: "AES-GCM", iv },
     key,
-    enc.encode(JSON.stringify(plaintextObj))
-  )
+    enc.encode(JSON.stringify(plaintextObj)),
+  );
 
   return {
     ciphertext: buf2Base64(ciphertextBuf),
     iv: buf2Base64(iv),
     salt: buf2Base64(salt),
-  }
+  };
 }
 
 /**
  * Decrypt a ciphertext blob back to a JS object using the master password.
  * All three params (ciphertext, iv, salt) must be Base64 strings.
  */
-export async function decryptPayload(ciphertextB64, ivB64, saltB64, masterPassword) {
-  const salt = base64ToBuf(saltB64)
-  const iv = base64ToBuf(ivB64)
-  const ciphertext = base64ToBuf(ciphertextB64)
+export async function decryptPayload(
+  ciphertextB64,
+  ivB64,
+  saltB64,
+  masterPassword,
+) {
+  const salt = base64ToBuf(saltB64);
+  const iv = base64ToBuf(ivB64);
+  const ciphertext = base64ToBuf(ciphertextB64);
 
-  const key = await deriveKey(masterPassword, salt)
+  const key = await deriveKey(masterPassword, salt);
 
   const decryptedBuf = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
+    { name: "AES-GCM", iv },
     key,
-    ciphertext
-  )
+    ciphertext,
+  );
 
-  return JSON.parse(dec.decode(decryptedBuf))
+  return JSON.parse(dec.decode(decryptedBuf));
 }
 
 // ════════════════════════════════════════════
@@ -122,11 +127,11 @@ export async function decryptPayload(ciphertextB64, ivB64, saltB64, masterPasswo
  */
 export async function registerUser(username, email, password) {
   const res = await fetch(`${API_BASE}/auth/register/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, email, password }),
-  })
-  return parseResponse(res, 'Registration failed')
+  });
+  return parseResponse(res, "Registration failed");
 }
 
 /**
@@ -135,11 +140,11 @@ export async function registerUser(username, email, password) {
  */
 export async function loginUser(username, password) {
   const res = await fetch(`${API_BASE}/auth/token/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
-  })
-  return parseResponse(res, 'Login failed')
+  });
+  return parseResponse(res, "Login failed");
 }
 
 // ════════════════════════════════════════════
@@ -147,56 +152,56 @@ export async function loginUser(username, password) {
 // ════════════════════════════════════════════
 
 function authHeaders() {
-  const token = sessionStorage.getItem('sv_access_token')
+  const token = sessionStorage.getItem("sv_access_token");
 
-  if (!token || token === 'null' || token === 'undefined') {
-    throw new Error('Missing authentication token. Please sign in again.')
+  if (!token || token === "null" || token === "undefined") {
+    throw new Error("Missing authentication token. Please sign in again.");
   }
 
   return {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
-  }
+  };
 }
 
-async function parseResponse(res, fallbackMessage = 'Request failed') {
-  const raw = await res.text()
-  let data = null
+async function parseResponse(res, fallbackMessage = "Request failed") {
+  const raw = await res.text();
+  let data = null;
 
   if (raw) {
     try {
-      data = JSON.parse(raw)
+      data = JSON.parse(raw);
     } catch {
-      data = raw
+      data = raw;
     }
   }
 
   if (!res.ok) {
-    if (typeof data === 'string' && data.trim()) {
-      throw new Error(data)
+    if (typeof data === "string" && data.trim()) {
+      throw new Error(data);
     }
 
-    if (data && typeof data === 'object') {
-      if (typeof data.detail === 'string' && data.detail.trim()) {
-        throw new Error(data.detail)
+    if (data && typeof data === "object") {
+      if (typeof data.detail === "string" && data.detail.trim()) {
+        throw new Error(data.detail);
       }
 
-      const firstKey = Object.keys(data)[0]
+      const firstKey = Object.keys(data)[0];
       if (firstKey) {
-        const firstValue = data[firstKey]
+        const firstValue = data[firstKey];
         if (Array.isArray(firstValue) && firstValue.length > 0) {
-          throw new Error(String(firstValue[0]))
+          throw new Error(String(firstValue[0]));
         }
-        if (typeof firstValue === 'string' && firstValue.trim()) {
-          throw new Error(firstValue)
+        if (typeof firstValue === "string" && firstValue.trim()) {
+          throw new Error(firstValue);
         }
       }
     }
 
-    throw new Error(fallbackMessage)
+    throw new Error(fallbackMessage);
   }
 
-  return data
+  return data;
 }
 
 /**
@@ -204,11 +209,11 @@ async function parseResponse(res, fallbackMessage = 'Request failed') {
  */
 export async function storeVaultEntry(label, ciphertext, iv, salt) {
   const res = await fetch(`${API_BASE}/vault/store/`, {
-    method: 'POST',
+    method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ label, ciphertext, iv, salt }),
-  })
-  return parseResponse(res, 'Failed to store vault entry')
+  });
+  return parseResponse(res, "Failed to store vault entry");
 }
 
 /**
@@ -218,19 +223,30 @@ export async function storeVaultEntry(label, ciphertext, iv, salt) {
 export async function fetchVaultEntries() {
   const res = await fetch(`${API_BASE}/vault/`, {
     headers: authHeaders(),
-  })
+  });
 
-  const data = await parseResponse(res, 'Failed to fetch vault entries')
+  const data = await parseResponse(res, "Failed to fetch vault entries");
 
   if (Array.isArray(data)) {
-    return data
+    return data;
   }
 
   if (Array.isArray(data?.results)) {
-    return data.results
+    return data.results;
   }
 
-  return []
+  return [];
+}
+
+/**
+ * Fetch honeypot status summary and alert details for the current user.
+ */
+export async function fetchHoneypotStatus() {
+  const res = await fetch(`${API_BASE}/honeypot/status/`, {
+    headers: authHeaders(),
+  });
+
+  return parseResponse(res, "Failed to fetch honeypot status");
 }
 
 /**
@@ -239,9 +255,9 @@ export async function fetchVaultEntries() {
 export async function fetchVaultEntry(id) {
   const res = await fetch(`${API_BASE}/vault/${id}/`, {
     headers: authHeaders(),
-  })
+  });
 
-  return parseResponse(res, 'Failed to fetch vault entry')
+  return parseResponse(res, "Failed to fetch vault entry");
 }
 
 /**
@@ -249,12 +265,12 @@ export async function fetchVaultEntry(id) {
  */
 export async function updateVaultEntry(id, payload) {
   const res = await fetch(`${API_BASE}/vault/${id}/update/`, {
-    method: 'PUT',
+    method: "PUT",
     headers: authHeaders(),
     body: JSON.stringify(payload),
-  })
+  });
 
-  return parseResponse(res, 'Failed to update vault entry')
+  return parseResponse(res, "Failed to update vault entry");
 }
 
 /**
@@ -262,14 +278,14 @@ export async function updateVaultEntry(id, payload) {
  */
 export async function deleteVaultEntry(id) {
   const res = await fetch(`${API_BASE}/vault/${id}/delete/`, {
-    method: 'DELETE',
+    method: "DELETE",
     headers: authHeaders(),
-  })
+  });
 
   if (res.status === 204) {
-    return true
+    return true;
   }
 
-  await parseResponse(res, 'Failed to delete entry')
-  return true
+  await parseResponse(res, "Failed to delete entry");
+  return true;
 }

@@ -5,7 +5,9 @@
   align-items: center;
   gap: 6px;
   margin-bottom: var(--space-xl);
-  transition: transform var(--transition-fast), color var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .add__back:hover {
@@ -81,7 +83,7 @@
 
 .add__secret-input:focus {
   border-bottom-color: var(--secondary-container);
-  box-shadow: 0 2px 12px rgba(0, 162, 253, 0.10);
+  box-shadow: 0 2px 12px rgba(0, 162, 253, 0.1);
 }
 
 .add__audit-btn {
@@ -152,10 +154,10 @@
 }
 
 .add__cat-btn--active {
-  background: rgba(0, 255, 65, 0.10);
+  background: rgba(0, 255, 65, 0.1);
   color: var(--primary-container);
-  border-color: rgba(0, 255, 65, 0.30);
-  box-shadow: 0 0 14px rgba(0,255,65,0.15);
+  border-color: rgba(0, 255, 65, 0.3);
+  box-shadow: 0 0 14px rgba(0, 255, 65, 0.15);
 }
 
 /* Submit */
@@ -191,7 +193,9 @@
   display: flex;
   gap: var(--space-md);
   align-items: flex-start;
-  transition: transform var(--transition-fast), color var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .add__step:hover {
@@ -205,7 +209,7 @@
   color: var(--primary-container);
   min-width: 24px;
   padding-top: 2px;
-  text-shadow: 0 0 10px rgba(0,255,65,0.25);
+  text-shadow: 0 0 10px rgba(0, 255, 65, 0.25);
 }
 
 .add__step strong {
