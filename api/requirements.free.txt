@@ -1,0 +1,12 @@
+# Free-tier deployment requirements (exclude heavy local AI model deps)
+# Keep runtime API and security dependencies only.
+django>=5.0,<7.0
+djangorestframework>=3.15
+djangorestframework-simplejwt>=5.3
+django-cors-headers>=4.3
+
+gunicorn>=22.0
+whitenoise>=6.7
+dj-database-url>=2.2
+psycopg2-binary>=2.9
+python-decouple>=3.8
